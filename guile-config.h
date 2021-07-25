@@ -26,63 +26,14 @@ static char **menucmd           = NULL;
 static Layout *layouts          = NULL;
 static MonitorRule *monrules    = NULL;
 static Rule *rules              = NULL;
+static Key *keys                = NULL;
 static Button *buttons          = NULL;
 static struct xkb_rule_names *xkb_rules = NULL;
 
+static unsigned int numkeys     = 0;
 static unsigned int numrules    = 0;
 static unsigned int nummonrules = 0;
 static unsigned int numbuttons  = 0;
-/* static Key *keys                = NULL; */
-
-#define MODKEY WLR_MODIFIER_ALT
-#define TAGKEYS(KEY,SKEY,TAG) \
-	{ MODKEY,                    KEY,            view,            {.ui = 1 << TAG} }, \
-	{ MODKEY|WLR_MODIFIER_CTRL,  KEY,            toggleview,      {.ui = 1 << TAG} }, \
-	{ MODKEY|WLR_MODIFIER_SHIFT, SKEY,           tag,             {.ui = 1 << TAG} }, \
-	{ MODKEY|WLR_MODIFIER_CTRL|WLR_MODIFIER_SHIFT,SKEY,toggletag, {.ui = 1 << TAG} }
-
-/* helper for spawning shell commands in the pre dwm-5.0 fashion */
-#define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
-static Key keys[] = {
-	/* Note that Shift changes certain key codes: c -> C, 2 -> at, etc. */
-	/* modifier                  key                 function        argument */
-	/* { MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Return,     spawn,          {.v = termcmd} }, */
-	{ MODKEY,                    XKB_KEY_j,          focusstack,     {.i = +1} },
-	{ MODKEY,                    XKB_KEY_k,          focusstack,     {.i = -1} },
-	{ MODKEY,                    XKB_KEY_i,          incnmaster,     {.i = +1} },
-	{ MODKEY,                    XKB_KEY_d,          incnmaster,     {.i = -1} },
-	{ MODKEY,                    XKB_KEY_h,          setmfact,       {.f = -0.05} },
-	{ MODKEY,                    XKB_KEY_l,          setmfact,       {.f = +0.05} },
-	{ MODKEY,                    XKB_KEY_Return,     zoom,           {0} },
-	{ MODKEY,                    XKB_KEY_Tab,        view,           {0} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_C,          killclient,     {0} },
-	/* { MODKEY,                    XKB_KEY_t,          setlayout,      {.v = &layouts[0]} }, */
-	/* { MODKEY,                    XKB_KEY_f,          setlayout,      {.v = &layouts[1]} }, */
-	/* { MODKEY,                    XKB_KEY_m,          setlayout,      {.v = &layouts[2]} }, */
-	{ MODKEY,                    XKB_KEY_space,      setlayout,      {0} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_space,      togglefloating, {0} },
-	{ MODKEY, 					 XKB_KEY_e,    		togglefullscreen, {0} },
-	{ MODKEY,                    XKB_KEY_0,          view,           {.ui = ~0} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_parenright, tag,            {.ui = ~0} },
-	{ MODKEY,                    XKB_KEY_comma,      focusmon,       {.i = WLR_DIRECTION_LEFT} },
-	{ MODKEY,                    XKB_KEY_period,     focusmon,       {.i = WLR_DIRECTION_RIGHT} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_less,       tagmon,         {.i = WLR_DIRECTION_LEFT} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_greater,    tagmon,         {.i = WLR_DIRECTION_RIGHT} },
-	TAGKEYS(          XKB_KEY_1, XKB_KEY_exclam,                     0),
-	TAGKEYS(          XKB_KEY_2, XKB_KEY_at,                         1),
-	TAGKEYS(          XKB_KEY_3, XKB_KEY_numbersign,                 2),
-	TAGKEYS(          XKB_KEY_4, XKB_KEY_dollar,                     3),
-	TAGKEYS(          XKB_KEY_5, XKB_KEY_percent,                    4),
-	TAGKEYS(          XKB_KEY_6, XKB_KEY_caret,                      5),
-	TAGKEYS(          XKB_KEY_7, XKB_KEY_ampersand,                  6),
-	TAGKEYS(          XKB_KEY_8, XKB_KEY_asterisk,                   7),
-	TAGKEYS(          XKB_KEY_9, XKB_KEY_parenleft,                  8),
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Q,          quit,           {0} },
-	{ WLR_MODIFIER_CTRL|WLR_MODIFIER_ALT,XKB_KEY_Terminate_Server, quit, {0} },
-#define CHVT(n) { WLR_MODIFIER_CTRL|WLR_MODIFIER_ALT,XKB_KEY_XF86Switch_VT_##n, chvt, {.ui = (n)} }
-	CHVT(1), CHVT(2), CHVT(3), CHVT(4), CHVT(5), CHVT(6),
-	CHVT(7), CHVT(8), CHVT(9), CHVT(10), CHVT(11), CHVT(12),
-};
 
 static inline SCM
 get_value(SCM alist, const char* key)
@@ -152,15 +103,16 @@ get_list_item(SCM list, unsigned int index)
         return scm_list_ref(list, scm_from_unsigned_integer(index));
 }
 
-static inline unsigned int
+static inline uint32_t
 get_value_modifiers(SCM alist, const char *key)
 {
         SCM modifiers = get_value(alist, key);
-        unsigned int i = 0, mod = 0, length = get_list_length(modifiers);
+        uint32_t mod = 0;
+        unsigned int i = 0, length = get_list_length(modifiers);
         for (; i < length; i++) {
-            SCM item = get_list_item(modifiers, i);
-            SCM eval = scm_primitive_eval(item);
-            mod |= scm_to_unsigned_integer(eval, 0, -1);
+                SCM item = get_list_item(modifiers, i);
+                SCM eval = scm_primitive_eval(item);
+                mod |= scm_to_uint32(eval);
         }
         return mod;
 }
@@ -268,14 +220,28 @@ guile_parse_rule(unsigned int index, SCM rule, void *data)
 }
 
 static inline void
-guile_parse_button(unsigned int index, SCM rule, void *data)
+guile_parse_key(unsigned int index, SCM key, void *data)
 {
-        SCM button = get_value(rule, "button");
-        SCM eval = scm_primitive_eval(button);
+        char *sym = get_value_string(key, "key");
+        xkb_keysym_t keysym = xkb_keysym_from_name(sym, 0);
+        if (keysym == XKB_KEY_NoSymbol)
+                BARF("error: invalid xkb key '%s'\n", sym);
+        ((Key*)data)[index] = (Key){
+                .mod = get_value_modifiers(key, "modifiers"),
+                .keysym = keysym,
+                .func = get_value_proc_pointer(key, "action")
+        };
+}
+
+static inline void
+guile_parse_button(unsigned int index, SCM button, void *data)
+{
+        SCM symbol = get_value(button, "button");
+        SCM eval = scm_primitive_eval(symbol);
         ((Button*)data)[index] = (Button){
-                .mod = get_value_modifiers(rule, "modifiers"),
+                .mod = (unsigned int)get_value_modifiers(button, "modifiers"),
                 .button = scm_to_unsigned_integer(eval, 0, -1),
-                .func = get_value_proc_pointer(rule, "action")
+                .func = get_value_proc_pointer(button, "action")
         };
 }
 
@@ -340,6 +306,8 @@ guile_parse_config(char *config_file)
                 sizeof(Rule), 0, &guile_parse_rule, &numrules);
         monrules = iterate_list(config, "monitor-rules",
                 sizeof(MonitorRule), 0, &guile_parse_monitor_rule, &nummonrules);
+        keys = iterate_list(config, "keys",
+                sizeof(Key), 0, &guile_parse_key, &numkeys);
         buttons = iterate_list(config, "buttons",
                 sizeof(Button), 0, &guile_parse_button, &numbuttons);
         xkb_rules = guile_parse_xkb_rules(config);

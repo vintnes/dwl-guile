@@ -122,8 +122,7 @@ typedef struct {
 typedef struct {
 	uint32_t mod;
 	xkb_keysym_t keysym;
-	void (*func)(const Arg *);
-	const Arg arg;
+        scm_t_bits *func;
 } Key;
 
 typedef struct {
@@ -1253,10 +1252,10 @@ keybinding(uint32_t mods, xkb_keysym_t sym)
 	 */
 	int handled = 0;
 	const Key *k;
-	for (k = keys; k < END(keys); k++) {
+	for (k = keys; k < (keys + (numkeys * sizeof(Key))); k++) {
 		if (CLEANMASK(mods) == CLEANMASK(k->mod) &&
 				sym == k->keysym && k->func) {
-			k->func(&k->arg);
+			guile_call_action(k->func);
 			handled = 1;
 		}
 	}
