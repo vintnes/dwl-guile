@@ -29,6 +29,7 @@ static Rule *rules              = NULL;
 static Button *buttons          = NULL;
 static struct xkb_rule_names *xkb_rules = NULL;
 
+static unsigned int numrules    = 0;
 static unsigned int nummonrules = 0;
 static unsigned int numbuttons  = 0;
 /* static Key *keys                = NULL; */
@@ -335,10 +336,10 @@ guile_parse_config(char *config_file)
                 sizeof(char*), 1, &guile_parse_string, NULL);
         layouts = iterate_list(config, "layouts",
                 sizeof(Layout), 0, &guile_parse_layout, NULL);
+        rules = iterate_list(config, "rules",
+                sizeof(Rule), 0, &guile_parse_rule, &numrules);
         monrules = iterate_list(config, "monitor-rules",
                 sizeof(MonitorRule), 0, &guile_parse_monitor_rule, &nummonrules);
-        rules = iterate_list(config, "rules",
-                sizeof(Rule), 0, &guile_parse_rule, NULL);
         buttons = iterate_list(config, "buttons",
                 sizeof(Button), 0, &guile_parse_button, &numbuttons);
         xkb_rules = guile_parse_xkb_rules(config);
