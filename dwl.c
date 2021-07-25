@@ -159,7 +159,7 @@ typedef struct {
 
 typedef struct {
 	const char *symbol;
-	void (*arrange)(Monitor *);
+        scm_t_bits *arrange;
 } Layout;
 
 struct Monitor {
@@ -483,9 +483,9 @@ applyrules(Client *c)
 void
 arrange(Monitor *m)
 {
-	if (m->lt[m->sellt]->arrange)
-		m->lt[m->sellt]->arrange(m);
-	else if (m->fullscreenclient)
+        if (m->lt[m->sellt]->arrange)
+		guile_call_arrange(m->lt[m->sellt]->arrange, m);
+        else if (m->fullscreenclient)
 		maximizeclient(m->fullscreenclient);
 	/* TODO recheck pointer focus here... or in resize()? */
 }
@@ -493,7 +493,7 @@ arrange(Monitor *m)
 void
 arrangelayer(Monitor *m, struct wl_list *list, struct wlr_box *usable_area, int exclusive)
 {
-	LayerSurface *layersurface;
+        LayerSurface *layersurface;
 	struct wlr_box full_area = m->m;
 
 	wl_list_for_each(layersurface, list, link) {
@@ -825,7 +825,7 @@ createmon(struct wl_listener *listener, void *data)
 	for (size_t i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 	m->tagset[0] = m->tagset[1] = 1;
-	for (r = monrules; r < END(monrules); r++) {
+	for (r = monrules; r < (monrules + (nummonrules * sizeof(MonitorRule))); r++) {
 		if (!r->name || strstr(wlr_output->name, r->name)) {
 			m->mfact = r->mfact;
 			m->nmaster = r->nmaster;

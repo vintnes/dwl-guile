@@ -22,9 +22,10 @@ static float *focuscolor        = NULL;
 static char **tags              = NULL;
 static char **termcmd           = NULL;
 static char **menucmd           = NULL;
+static Layout *layouts          = NULL;
+static MonitorRule *monrules    = NULL;
+static unsigned int nummonrules = 0;
 /* static Rule *rules              = NULL; */
-/* static Layout *layouts          = NULL; */
-/* static MonitorRule *monrules    = NULL; */
 /* static Key *keys                = NULL; */
 /* static Button *buttons          = NULL; */
 /* static struct xkb_rule_names *xkb_rules = NULL; */
@@ -36,20 +37,20 @@ static Rule rules[] = {
 	{ "firefox",  NULL,       1 << 8,       0,           -1 },
 	*/
 };
-static Layout layouts[] = {
-	/* symbol     arrange function */
-	{ "[]=",      tile },
-	{ "><>",      NULL },    /* no layout function means floating behavior */
-	{ "[M]",      monocle },
-};
-static MonitorRule monrules[] = {
+/* static Layout layouts[] = { */
+/* 	/1* symbol     arrange function *1/ */
+/* 	{ "[]=",      tile }, */
+/* 	{ "><>",      NULL },    /1* no layout function means floating behavior *1/ */
+/* 	{ "[M]",      monocle }, */
+/* }; */
+/* static MonitorRule monrules[] = { */
 	/* name       mfact nmaster scale layout       rotate/reflect x y */
 	/* example of a HiDPI laptop monitor:
 	{ "eDP-1",    0.5,  1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL, 0, 0 },
 	*/
 	/* defaults */
-	{ NULL,       0.55, 1,      1,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL, 0, 0 },
-};
+	/* { NULL,       0.55, 1,      1,    , WL_OUTPUT_TRANSFORM_NORMAL, 0, 0 }, */
+/* }; */
 static struct xkb_rule_names xkb_rules = {
 	/* can specify fields: rules, model, layout, variant, options */
 	/* example:
@@ -79,9 +80,9 @@ static Key keys[] = {
 	{ MODKEY,                    XKB_KEY_Return,     zoom,           {0} },
 	{ MODKEY,                    XKB_KEY_Tab,        view,           {0} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_C,          killclient,     {0} },
-	{ MODKEY,                    XKB_KEY_t,          setlayout,      {.v = &layouts[0]} },
-	{ MODKEY,                    XKB_KEY_f,          setlayout,      {.v = &layouts[1]} },
-	{ MODKEY,                    XKB_KEY_m,          setlayout,      {.v = &layouts[2]} },
+	/* { MODKEY,                    XKB_KEY_t,          setlayout,      {.v = &layouts[0]} }, */
+	/* { MODKEY,                    XKB_KEY_f,          setlayout,      {.v = &layouts[1]} }, */
+	/* { MODKEY,                    XKB_KEY_m,          setlayout,      {.v = &layouts[2]} }, */
 	{ MODKEY,                    XKB_KEY_space,      setlayout,      {0} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_space,      togglefloating, {0} },
 	{ MODKEY, 					 XKB_KEY_e,    		togglefullscreen, {0} },
@@ -143,6 +144,15 @@ get_value_unsigned_int(SCM alist, const char* key, int max)
         return scm_to_unsigned_integer(get_value(alist, key), 0, max);
 }
 
+static inline float
+get_value_float(SCM alist, const char* key)
+{
+        SCM value = get_value(alist, key);
+        if (scm_is_bool(value))
+                return scm_is_true(value) ? 1 : 0;
+        return (float)scm_to_double(value);
+}
+
 static inline unsigned int
 get_list_length(SCM list)
 {
@@ -151,10 +161,9 @@ get_list_length(SCM list)
 
 static inline void *
 iterate_list(SCM alist, const char* key, size_t elem_size,
-        int append_null, void (*iterator)(unsigned int, SCM, void*))
+        int append_null, void (*iterator)(unsigned int, SCM, void*), unsigned int *length_var)
 {
-        unsigned int length = 0, i = 0;
-
+        unsigned int i = 0, length = 0;
         SCM list = get_value(alist, key);
         length = get_list_length(list);
         void *allocated = calloc(append_null ? length + 1 : length, elem_size);
@@ -164,6 +173,8 @@ iterate_list(SCM alist, const char* key, size_t elem_size,
         }
         if (append_null)
                 ((void**)allocated)[i+1] = NULL;
+        if (length_var)
+                *length_var = length;
         return allocated;
 }
 
@@ -212,15 +223,48 @@ guile_parse_color(unsigned int index, SCM value, void *data)
 }
 
 static inline void
-guile_parse_tag(unsigned int index, SCM tag, void *data)
+guile_parse_string(unsigned int index, SCM str, void *data)
 {
-        ((char**)data)[index] = scm_to_locale_string(tag);
+        ((char**)data)[index] = scm_to_locale_string(str);
 }
 
 static inline void
-guile_parse_terminal_arg(unsigned int index, SCM arg, void *data)
+guile_parse_layout(unsigned int index, SCM layout, void *data)
 {
-        ((char**)data)[index] = scm_to_locale_string(arg);
+        SCM arrange = get_value(layout, "arrange");
+        scm_t_bits *dest = NULL;
+        if (scm_procedure_p(arrange) == SCM_BOOL_T) {
+            dest = SCM_UNPACK_POINTER(arrange);
+        }
+        ((Layout*)data)[index] = (Layout){
+            .symbol = get_value_string(layout, "symbol"),
+            .arrange = dest
+        };
+}
+
+static inline void
+guile_parse_monitor_rule(unsigned int index, SCM monitor, void *data)
+{
+        SCM name = get_value(monitor, "name");
+        SCM transform = get_value(monitor, "transform");
+        SCM eval = scm_primitive_eval(transform);
+        ((MonitorRule*)data)[index] = (MonitorRule){
+            .name = scm_is_false(name) ? NULL : scm_to_locale_string(name),
+            .mfact = get_value_float(monitor, "master-factor"),
+            .nmaster = get_value_int(monitor, "number-of-masters"),
+            .scale = get_value_float(monitor, "scale"),
+            .lt = &layouts[get_value_int(monitor, "layout")],
+            .rr = (enum wl_output_transform)scm_to_int(eval),
+            .x = get_value_int(monitor, "x"),
+            .y = get_value_int(monitor, "y"),
+        };
+}
+
+static inline void
+guile_call_arrange(scm_t_bits *arrange, Monitor *m)
+{
+        SCM proc = SCM_PACK_POINTER(arrange);
+        scm_call_1(proc, scm_from_pointer(m, NULL));
 }
 
 static inline void
@@ -238,15 +282,19 @@ guile_parse_config(char *config_file)
 
         SCM colors = get_value(config, "colors");
         rootcolor = iterate_list(colors, "root",
-                sizeof(float), 0, &guile_parse_color);
+                sizeof(float), 0, &guile_parse_color, NULL);
         bordercolor = iterate_list(colors, "border",
-                sizeof(float), 0, &guile_parse_color);
+                sizeof(float), 0, &guile_parse_color, NULL);
         focuscolor = iterate_list(colors, "focus",
-                sizeof(float), 0, &guile_parse_color);
+                sizeof(float), 0, &guile_parse_color, NULL);
         tags = iterate_list(config, "tags",
-                sizeof(char*), 0, &guile_parse_tag);
+                sizeof(char*), 0, &guile_parse_string, NULL);
         termcmd = iterate_list(config, "terminal",
-                sizeof(char*), 1, &guile_parse_terminal_arg);
+                sizeof(char*), 1, &guile_parse_string, NULL);
         menucmd = iterate_list(config, "menu",
-                sizeof(char*), 1, &guile_parse_terminal_arg);
+                sizeof(char*), 1, &guile_parse_string, NULL);
+        layouts = iterate_list(config, "layouts",
+                sizeof(Layout), 0, &guile_parse_layout, NULL);
+        monrules = iterate_list(config, "monitor-rules",
+                sizeof(MonitorRule), 0, &guile_parse_monitor_rule, &nummonrules);
 }
