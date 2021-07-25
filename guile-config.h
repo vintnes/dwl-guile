@@ -20,10 +20,11 @@ static float *rootcolor         = NULL;
 static float *bordercolor       = NULL;
 static float *focuscolor        = NULL;
 static char **tags              = NULL;
+static char **termcmd           = NULL;
+static char **menucmd           = NULL;
 /* static Rule *rules              = NULL; */
 /* static Layout *layouts          = NULL; */
 /* static MonitorRule *monrules    = NULL; */
-/* static char **termcmd           = NULL; */
 /* static Key *keys                = NULL; */
 /* static Button *buttons          = NULL; */
 /* static struct xkb_rule_names *xkb_rules = NULL; */
@@ -65,11 +66,10 @@ static struct xkb_rule_names xkb_rules = {
 
 /* helper for spawning shell commands in the pre dwm-5.0 fashion */
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
-static char *termcmd[]  = { "alacritty", NULL };
 static Key keys[] = {
 	/* Note that Shift changes certain key codes: c -> C, 2 -> at, etc. */
 	/* modifier                  key                 function        argument */
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Return,     spawn,          {.v = termcmd} },
+	/* { MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Return,     spawn,          {.v = termcmd} }, */
 	{ MODKEY,                    XKB_KEY_j,          focusstack,     {.i = +1} },
 	{ MODKEY,                    XKB_KEY_k,          focusstack,     {.i = -1} },
 	{ MODKEY,                    XKB_KEY_i,          incnmaster,     {.i = +1} },
@@ -150,15 +150,20 @@ get_list_length(SCM list)
 }
 
 static inline void *
-iterate_list(SCM alist, const char* key, size_t elem_size, void (*iterator)(unsigned int, SCM, void*))
+iterate_list(SCM alist, const char* key, size_t elem_size,
+        int append_null, void (*iterator)(unsigned int, SCM, void*))
 {
+        unsigned int length = 0, i = 0;
+
         SCM list = get_value(alist, key);
-        unsigned int length = get_list_length(list);
-        void *allocated = calloc(length, elem_size);
-        for (unsigned int i = 0; i < length; i++) {
+        length = get_list_length(list);
+        void *allocated = calloc(append_null ? length + 1 : length, elem_size);
+        for (; i < length; i++) {
                 SCM item = scm_list_ref(list, scm_from_unsigned_integer(i));
                 (*iterator)(i, item, allocated);
         }
+        if (append_null)
+                ((void**)allocated)[i+1] = NULL;
         return allocated;
 }
 
@@ -213,6 +218,12 @@ guile_parse_tag(unsigned int index, SCM tag, void *data)
 }
 
 static inline void
+guile_parse_terminal_arg(unsigned int index, SCM arg, void *data)
+{
+        ((char**)data)[index] = scm_to_locale_string(arg);
+}
+
+static inline void
 guile_parse_config(char *config_file)
 {
         scm_c_primitive_load(config_file);
@@ -226,12 +237,16 @@ guile_parse_config(char *config_file)
         repeat_delay = get_value_unsigned_int(config, "repeat-delay", 5000);
 
         SCM colors = get_value(config, "colors");
-        rootcolor = iterate_list(colors, "root", sizeof(float),
-                &guile_parse_color);
-        bordercolor = iterate_list(colors, "border", sizeof(float),
-                &guile_parse_color);
-        focuscolor = iterate_list(colors, "focus", sizeof(float),
-                &guile_parse_color);
-        tags = iterate_list(config, "tags", sizeof(char*),
-                &guile_parse_tag);
+        rootcolor = iterate_list(colors, "root",
+                sizeof(float), 0, &guile_parse_color);
+        bordercolor = iterate_list(colors, "border",
+                sizeof(float), 0, &guile_parse_color);
+        focuscolor = iterate_list(colors, "focus",
+                sizeof(float), 0, &guile_parse_color);
+        tags = iterate_list(config, "tags",
+                sizeof(char*), 0, &guile_parse_tag);
+        termcmd = iterate_list(config, "terminal",
+                sizeof(char*), 1, &guile_parse_terminal_arg);
+        menucmd = iterate_list(config, "menu",
+                sizeof(char*), 1, &guile_parse_terminal_arg);
 }
