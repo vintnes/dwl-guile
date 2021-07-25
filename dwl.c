@@ -79,8 +79,7 @@ typedef union {
 typedef struct {
 	unsigned int mod;
 	unsigned int button;
-	void (*func)(const Arg *);
-	const Arg arg;
+        scm_t_bits *func;
 } Button;
 
 typedef struct Monitor Monitor;
@@ -651,10 +650,10 @@ buttonpress(struct wl_listener *listener, void *data)
 
 		keyboard = wlr_seat_get_keyboard(seat);
 		mods = wlr_keyboard_get_modifiers(keyboard);
-		for (b = buttons; b < END(buttons); b++) {
+		for (b = buttons; b < (buttons + (numbuttons * sizeof(Button))); b++) {
 			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
 					event->button == b->button && b->func) {
-				b->func(&b->arg);
+				guile_call_action(b->func);
 				return;
 			}
 		}
@@ -792,7 +791,7 @@ createkeyboard(struct wlr_input_device *device)
 
 	/* Prepare an XKB keymap and assign it to the keyboard. */
 	context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	keymap = xkb_map_new_from_names(context, &xkb_rules,
+	keymap = xkb_map_new_from_names(context, xkb_rules,
 		XKB_KEYMAP_COMPILE_NO_FLAGS);
 
 	wlr_keyboard_set_keymap(device->keyboard, keymap);

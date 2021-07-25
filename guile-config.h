@@ -7,6 +7,7 @@
 
 #define GUILE_RGB_COLOR_LENGTH  4
 #define GUILE_MAX_LIST_LENGTH   500
+#define GUILE_MAX_TAGS          100
 
 /* Config variable definitions. */
 /* These will be automatically set from the guile config. */
@@ -24,39 +25,13 @@ static char **termcmd           = NULL;
 static char **menucmd           = NULL;
 static Layout *layouts          = NULL;
 static MonitorRule *monrules    = NULL;
-static unsigned int nummonrules = 0;
-/* static Rule *rules              = NULL; */
-/* static Key *keys                = NULL; */
-/* static Button *buttons          = NULL; */
-/* static struct xkb_rule_names *xkb_rules = NULL; */
+static Rule *rules              = NULL;
+static Button *buttons          = NULL;
+static struct xkb_rule_names *xkb_rules = NULL;
 
-static Rule rules[] = {
-	/* app_id     title       tags mask     isfloating   monitor */
-	/* examples:
-	{ "Gimp",     NULL,       0,            1,           -1 },
-	{ "firefox",  NULL,       1 << 8,       0,           -1 },
-	*/
-};
-/* static Layout layouts[] = { */
-/* 	/1* symbol     arrange function *1/ */
-/* 	{ "[]=",      tile }, */
-/* 	{ "><>",      NULL },    /1* no layout function means floating behavior *1/ */
-/* 	{ "[M]",      monocle }, */
-/* }; */
-/* static MonitorRule monrules[] = { */
-	/* name       mfact nmaster scale layout       rotate/reflect x y */
-	/* example of a HiDPI laptop monitor:
-	{ "eDP-1",    0.5,  1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL, 0, 0 },
-	*/
-	/* defaults */
-	/* { NULL,       0.55, 1,      1,    , WL_OUTPUT_TRANSFORM_NORMAL, 0, 0 }, */
-/* }; */
-static struct xkb_rule_names xkb_rules = {
-	/* can specify fields: rules, model, layout, variant, options */
-	/* example:
-	.options = "ctrl:nocaps",
-	*/
-};
+static unsigned int nummonrules = 0;
+static unsigned int numbuttons  = 0;
+/* static Key *keys                = NULL; */
 
 #define MODKEY WLR_MODIFIER_ALT
 #define TAGKEYS(KEY,SKEY,TAG) \
@@ -108,12 +83,6 @@ static Key keys[] = {
 	CHVT(7), CHVT(8), CHVT(9), CHVT(10), CHVT(11), CHVT(12),
 };
 
-static Button buttons[] = {
-	{ MODKEY, BTN_LEFT,   moveresize,     {.ui = CurMove} },
-	{ MODKEY, BTN_MIDDLE, togglefloating, {0} },
-	{ MODKEY, BTN_RIGHT,  moveresize,     {.ui = CurResize} },
-};
-
 static inline SCM
 get_value(SCM alist, const char* key)
 {
@@ -153,22 +122,58 @@ get_value_float(SCM alist, const char* key)
         return (float)scm_to_double(value);
 }
 
+
+static inline scm_t_bits *
+get_value_proc_pointer(SCM alist, const char *key)
+{
+        SCM value = get_value(alist, key);
+        scm_t_bits *proc = NULL;
+        if (scm_procedure_p(value) == SCM_BOOL_T)
+                proc = SCM_UNPACK_POINTER(value);
+        return proc;
+}
+
+static inline SCM
+get_variable(const char *name)
+{
+        return scm_variable_ref(scm_c_lookup(name));
+}
+
 static inline unsigned int
 get_list_length(SCM list)
 {
         return scm_to_unsigned_integer(scm_length(list), 0, GUILE_MAX_LIST_LENGTH);
 }
 
+static inline SCM
+get_list_item(SCM list, unsigned int index)
+{
+        return scm_list_ref(list, scm_from_unsigned_integer(index));
+}
+
+static inline unsigned int
+get_value_modifiers(SCM alist, const char *key)
+{
+        SCM modifiers = get_value(alist, key);
+        unsigned int i = 0, mod = 0, length = get_list_length(modifiers);
+        for (; i < length; i++) {
+            SCM item = get_list_item(modifiers, i);
+            SCM eval = scm_primitive_eval(item);
+            mod |= scm_to_unsigned_integer(eval, 0, -1);
+        }
+        return mod;
+}
+
 static inline void *
-iterate_list(SCM alist, const char* key, size_t elem_size,
-        int append_null, void (*iterator)(unsigned int, SCM, void*), unsigned int *length_var)
+iterate_list(SCM alist, const char* key, size_t elem_size, int append_null,
+        void (*iterator)(unsigned int, SCM, void*), unsigned int *length_var)
 {
         unsigned int i = 0, length = 0;
         SCM list = get_value(alist, key);
         length = get_list_length(list);
         void *allocated = calloc(append_null ? length + 1 : length, elem_size);
         for (; i < length; i++) {
-                SCM item = scm_list_ref(list, scm_from_unsigned_integer(i));
+                SCM item = get_list_item(list, i);
                 (*iterator)(i, item, allocated);
         }
         if (append_null)
@@ -176,12 +181,6 @@ iterate_list(SCM alist, const char* key, size_t elem_size,
         if (length_var)
                 *length_var = length;
         return allocated;
-}
-
-static inline SCM
-get_variable(const char *name)
-{
-        return scm_variable_ref(scm_c_lookup(name));
 }
 
 static inline void
@@ -231,33 +230,67 @@ guile_parse_string(unsigned int index, SCM str, void *data)
 static inline void
 guile_parse_layout(unsigned int index, SCM layout, void *data)
 {
-        SCM arrange = get_value(layout, "arrange");
-        scm_t_bits *dest = NULL;
-        if (scm_procedure_p(arrange) == SCM_BOOL_T) {
-            dest = SCM_UNPACK_POINTER(arrange);
-        }
+        scm_t_bits *proc = get_value_proc_pointer(layout, "arrange");
         ((Layout*)data)[index] = (Layout){
-            .symbol = get_value_string(layout, "symbol"),
-            .arrange = dest
+                .symbol = get_value_string(layout, "symbol"),
+                .arrange = proc
         };
 }
 
 static inline void
-guile_parse_monitor_rule(unsigned int index, SCM monitor, void *data)
+guile_parse_monitor_rule(unsigned int index, SCM rule, void *data)
 {
-        SCM name = get_value(monitor, "name");
-        SCM transform = get_value(monitor, "transform");
+        SCM transform = get_value(rule, "transform");
         SCM eval = scm_primitive_eval(transform);
         ((MonitorRule*)data)[index] = (MonitorRule){
-            .name = scm_is_false(name) ? NULL : scm_to_locale_string(name),
-            .mfact = get_value_float(monitor, "master-factor"),
-            .nmaster = get_value_int(monitor, "number-of-masters"),
-            .scale = get_value_float(monitor, "scale"),
-            .lt = &layouts[get_value_int(monitor, "layout")],
-            .rr = (enum wl_output_transform)scm_to_int(eval),
-            .x = get_value_int(monitor, "x"),
-            .y = get_value_int(monitor, "y"),
+                .name = get_value_string(rule, "name"),
+                .mfact = get_value_float(rule, "master-factor"),
+                .nmaster = get_value_int(rule, "number-of-masters"),
+                .scale = get_value_float(rule, "scale"),
+                .lt = &layouts[get_value_int(rule, "layout")],
+                .rr = (enum wl_output_transform)scm_to_int(eval),
+                .x = get_value_int(rule, "x"),
+                .y = get_value_int(rule, "y"),
         };
+}
+
+static inline void
+guile_parse_rule(unsigned int index, SCM rule, void *data)
+{
+         ((Rule*)data)[index] = (Rule){
+                .id = get_value_string(rule, "id"),
+                .title = get_value_string(rule, "title"),
+                .tags = get_value_unsigned_int(rule, "tag", GUILE_MAX_TAGS),
+                .isfloating = get_value_int(rule, "floating"),
+                .monitor = get_value_int(rule, "monitor")
+         };
+}
+
+static inline void
+guile_parse_button(unsigned int index, SCM rule, void *data)
+{
+        SCM button = get_value(rule, "button");
+        SCM eval = scm_primitive_eval(button);
+        ((Button*)data)[index] = (Button){
+                .mod = get_value_modifiers(rule, "modifiers"),
+                .button = scm_to_unsigned_integer(eval, 0, -1),
+                .func = get_value_proc_pointer(rule, "action")
+        };
+}
+
+static inline struct xkb_rule_names *
+guile_parse_xkb_rules(SCM config)
+{
+        SCM xkb = get_value(config, "xkb-rules");
+        struct xkb_rule_names *dest = calloc(1, sizeof(struct xkb_rule_names));
+        *dest = (struct xkb_rule_names){
+                .rules = get_value_string(xkb, "rules"),
+                .model = get_value_string(xkb, "model"),
+                .layout = get_value_string(xkb, "layouts"),
+                .variant = get_value_string(xkb, "variants"),
+                .options = get_value_string(xkb, "options"),
+        };
+        return dest;
 }
 
 static inline void
@@ -265,6 +298,13 @@ guile_call_arrange(scm_t_bits *arrange, Monitor *m)
 {
         SCM proc = SCM_PACK_POINTER(arrange);
         scm_call_1(proc, scm_from_pointer(m, NULL));
+}
+
+static inline void
+guile_call_action(scm_t_bits *action)
+{
+        SCM proc = SCM_PACK_POINTER(action);
+        scm_call_0(proc);
 }
 
 static inline void
@@ -297,4 +337,9 @@ guile_parse_config(char *config_file)
                 sizeof(Layout), 0, &guile_parse_layout, NULL);
         monrules = iterate_list(config, "monitor-rules",
                 sizeof(MonitorRule), 0, &guile_parse_monitor_rule, &nummonrules);
+        rules = iterate_list(config, "rules",
+                sizeof(Rule), 0, &guile_parse_rule, NULL);
+        buttons = iterate_list(config, "buttons",
+                sizeof(Button), 0, &guile_parse_button, &numbuttons);
+        xkb_rules = guile_parse_xkb_rules(config);
 }
