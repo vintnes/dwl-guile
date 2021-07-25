@@ -42,6 +42,7 @@
 #include <wlr/backend/libinput.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
+#include <libguile.h>
 #ifdef XWAYLAND
 #include <X11/Xlib.h>
 #include <wlr/xwayland.h>
@@ -368,11 +369,11 @@ static struct wlr_xwayland *xwayland;
 static Atom netatom[NetLast];
 #endif
 
-/* configuration, allows nested code to access above variables */
-#include "config.h"
-
 /* attempt to encapsulate suck into one file */
 #include "client.h"
+
+/* include config */
+#include "guile-config.h"
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
@@ -2547,15 +2548,18 @@ xytoindependent(double x, double y)
 }
 #endif
 
-int
-main(int argc, char *argv[])
+void
+inner_main(void* data, int argc, char **argv)
 {
 	char *startup_cmd = NULL;
+	char *config_file = NULL;
 	int c;
 
-	while ((c = getopt(argc, argv, "s:h")) != -1) {
+	while ((c = getopt(argc, argv, "s:c:h")) != -1) {
 		if (c == 's')
 			startup_cmd = optarg;
+                else if (c == 'c')
+                        config_file = optarg;
 		else
 			goto usage;
 	}
@@ -2566,11 +2570,22 @@ main(int argc, char *argv[])
 	// socket
 	if (!getenv("XDG_RUNTIME_DIR"))
 		BARF("XDG_RUNTIME_DIR must be set");
+        if (!config_file)
+                BARF("error: config path must be set using '-c'");
+        guile_register_constants();
+        /* guile_register_procedures(); */
+        guile_load_config(config_file);
+        guile_parse_config();
 	setup();
 	run(startup_cmd);
 	cleanup();
-	return EXIT_SUCCESS;
-
 usage:
-	BARF("Usage: %s [-s startup command]", argv[0]);
+	BARF("Usage: %s [-c path to config.scm] [-s startup command]", argv[0]);
+}
+
+int
+main(int argc, char *argv[])
+{
+        scm_boot_guile(argc, argv, inner_main, NULL);
+	return EXIT_SUCCESS;
 }
