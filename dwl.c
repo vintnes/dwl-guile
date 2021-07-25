@@ -2574,8 +2574,7 @@ inner_main(void* data, int argc, char **argv)
                 BARF("error: config path must be set using '-c'");
         guile_register_constants();
         /* guile_register_procedures(); */
-        guile_load_config(config_file);
-        guile_parse_config();
+        guile_parse_config(config_file);
 	setup();
 	run(startup_cmd);
 	cleanup();

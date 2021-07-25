@@ -1,8 +1,12 @@
+#include <stdio.h>
 #include <libguile.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wayland-client-protocol.h>
 #include <linux/input-event-codes.h>
+
+#define GUILE_RGB_COLOR_LENGTH  4
+#define GUILE_MAX_LIST_LENGTH   500
 
 /* Config variable definitions. */
 /* These will be automatically set from the guile config. */
@@ -12,10 +16,10 @@ static int sloppyfocus          = 1;
 static int tap_to_click         = 1;
 static int natural_scrolling    = 1;
 static unsigned int borderpx    = 1;
-/* static float *rootcolor         = NULL; */
-/* static float *bordercolor       = NULL; */
-/* static float *focuscolor        = NULL; */
-/* static char **tags              = NULL; */
+static float *rootcolor         = NULL;
+static float *bordercolor       = NULL;
+static float *focuscolor        = NULL;
+static char **tags              = NULL;
 /* static Rule *rules              = NULL; */
 /* static Layout *layouts          = NULL; */
 /* static MonitorRule *monrules    = NULL; */
@@ -24,11 +28,6 @@ static unsigned int borderpx    = 1;
 /* static Button *buttons          = NULL; */
 /* static struct xkb_rule_names *xkb_rules = NULL; */
 
-static float rootcolor[]      = {0.3, 0.3, 0.3, 1.0};
-static float bordercolor[]    = {0.5, 0.5, 0.5, 1.0};
-static float focuscolor[]     = {1.0, 0.0, 0.0, 1.0};
-
-static char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 static Rule rules[] = {
 	/* app_id     title       tags mask     isfloating   monitor */
 	/* examples:
@@ -117,44 +116,56 @@ static Button buttons[] = {
 static inline SCM
 get_value(SCM alist, const char* key)
 {
-    return scm_assoc_ref(alist, scm_from_locale_string(key));
+        return scm_assoc_ref(alist, scm_from_locale_string(key));
 }
 
 static inline char*
 get_value_string(SCM alist, const char* key)
 {
-    SCM value = get_value(alist, key);
-
-    if (scm_is_string(value)) {
-        return scm_to_locale_string(value);
-    }
-
-    return NULL;
+        SCM value = get_value(alist, key);
+        if (scm_is_string(value))
+                return scm_to_locale_string(value);
+        return NULL;
 }
 
 static inline int
 get_value_int(SCM alist, const char* key)
 {
-    SCM value = get_value(alist, key);
-
-    // Allow parsing of booleans as integers
-    if (scm_is_bool(value)) {
-        return scm_is_true(value) ? 1 : 0;
-    }
-
-    return scm_to_int(value);
+        SCM value = get_value(alist, key);
+        if (scm_is_bool(value))
+                return scm_is_true(value) ? 1 : 0;
+        return scm_to_int(value);
 }
 
 static inline unsigned int
 get_value_unsigned_int(SCM alist, const char* key, int max)
 {
-    return scm_to_unsigned_integer(get_value(alist, key), 0, max);
+        return scm_to_unsigned_integer(get_value(alist, key), 0, max);
+}
+
+static inline unsigned int
+get_list_length(SCM list)
+{
+        return scm_to_unsigned_integer(scm_length(list), 0, GUILE_MAX_LIST_LENGTH);
+}
+
+static inline void *
+iterate_list(SCM alist, const char* key, size_t elem_size, void (*iterator)(unsigned int, SCM, void*))
+{
+        SCM list = get_value(alist, key);
+        unsigned int length = get_list_length(list);
+        void *allocated = calloc(length, elem_size);
+        for (unsigned int i = 0; i < length; i++) {
+                SCM item = scm_list_ref(list, scm_from_unsigned_integer(i));
+                (*iterator)(i, item, allocated);
+        }
+        return allocated;
 }
 
 static inline SCM
 get_variable(const char *name)
 {
-    return scm_variable_ref(scm_c_lookup(name));
+        return scm_variable_ref(scm_c_lookup(name));
 }
 
 static inline void
@@ -190,21 +201,37 @@ guile_register_constants()
 }
 
 static inline void
-guile_load_config(char *config_file)
+guile_parse_color(unsigned int index, SCM value, void *data)
 {
-        /* this must be called in a separate context,
-           or you will get a compilation error. */
-        scm_c_primitive_load(config_file);
+        ((float*)data)[index] = (float)scm_to_double(value);
 }
 
 static inline void
-guile_parse_config()
+guile_parse_tag(unsigned int index, SCM tag, void *data)
 {
+        ((char**)data)[index] = scm_to_locale_string(tag);
+}
+
+static inline void
+guile_parse_config(char *config_file)
+{
+        scm_c_primitive_load(config_file);
         SCM config = get_variable("config");
+
         sloppyfocus = get_value_int(config, "sloppy-focus");
         tap_to_click = get_value_int(config, "tap-to-click");
         natural_scrolling = get_value_int(config, "natural-scrolling");
         borderpx = get_value_unsigned_int(config, "border-px", 25);
         repeat_rate = get_value_unsigned_int(config, "repeat-rate", 5000);
         repeat_delay = get_value_unsigned_int(config, "repeat-delay", 5000);
+
+        SCM colors = get_value(config, "colors");
+        rootcolor = iterate_list(colors, "root", sizeof(float),
+                &guile_parse_color);
+        bordercolor = iterate_list(colors, "border", sizeof(float),
+                &guile_parse_color);
+        focuscolor = iterate_list(colors, "focus", sizeof(float),
+                &guile_parse_color);
+        tags = iterate_list(config, "tags", sizeof(char*),
+                &guile_parse_tag);
 }
