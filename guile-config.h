@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <libguile.h>
-#include <xkbcommon/xkbcommon.h>
-#include <wlr/types/wlr_keyboard.h>
-#include <wayland-client-protocol.h>
-#include <linux/input-event-codes.h>
-
-#define GUILE_RGB_COLOR_LENGTH  4
-#define GUILE_MAX_LIST_LENGTH   500
-#define GUILE_MAX_TAGS          100
+#pragma once
 
 /* Config variable definitions. */
 /* These will be automatically set from the guile config. */
@@ -36,139 +27,6 @@ static unsigned int numrules    = 0;
 static unsigned int numlayouts  = 0;
 static unsigned int nummonrules = 0;
 static unsigned int numbuttons  = 0;
-
-static inline SCM
-get_value(SCM alist, const char* key)
-{
-        return scm_assoc_ref(alist, scm_from_locale_string(key));
-}
-
-static inline char*
-get_value_string(SCM alist, const char* key)
-{
-        SCM value = get_value(alist, key);
-        if (scm_is_string(value))
-                return scm_to_locale_string(value);
-        return NULL;
-}
-
-static inline int
-get_value_int(SCM alist, const char* key)
-{
-        SCM value = get_value(alist, key);
-        if (scm_is_bool(value))
-                return scm_is_true(value) ? 1 : 0;
-        return scm_to_int(value);
-}
-
-static inline unsigned int
-get_value_unsigned_int(SCM alist, const char* key, int max)
-{
-        return scm_to_unsigned_integer(get_value(alist, key), 0, max);
-}
-
-static inline float
-get_value_float(SCM alist, const char* key)
-{
-        SCM value = get_value(alist, key);
-        if (scm_is_bool(value))
-                return scm_is_true(value) ? 1 : 0;
-        return (float)scm_to_double(value);
-}
-
-
-static inline scm_t_bits *
-get_value_proc_pointer(SCM alist, const char *key)
-{
-        SCM value = get_value(alist, key);
-        scm_t_bits *proc = NULL;
-        if (scm_procedure_p(value) == SCM_BOOL_T)
-                proc = SCM_UNPACK_POINTER(value);
-        return proc;
-}
-
-static inline SCM
-get_variable(const char *name)
-{
-        return scm_variable_ref(scm_c_lookup(name));
-}
-
-static inline unsigned int
-get_list_length(SCM list)
-{
-        return scm_to_unsigned_integer(scm_length(list), 0, GUILE_MAX_LIST_LENGTH);
-}
-
-static inline SCM
-get_list_item(SCM list, unsigned int index)
-{
-        return scm_list_ref(list, scm_from_unsigned_integer(index));
-}
-
-static inline uint32_t
-get_value_modifiers(SCM alist, const char *key)
-{
-        SCM modifiers = get_value(alist, key);
-        uint32_t mod = 0;
-        unsigned int i = 0, length = get_list_length(modifiers);
-        for (; i < length; i++) {
-                SCM item = get_list_item(modifiers, i);
-                SCM eval = scm_primitive_eval(item);
-                mod |= scm_to_uint32(eval);
-        }
-        return mod;
-}
-
-static inline void *
-iterate_list(SCM alist, const char* key, size_t elem_size, int append_null,
-        void (*iterator)(unsigned int, SCM, void*), unsigned int *length_var)
-{
-        unsigned int i = 0, length = 0;
-        SCM list = get_value(alist, key);
-        length = get_list_length(list);
-        void *allocated = calloc(append_null ? length + 1 : length, elem_size);
-        for (; i < length; i++) {
-                SCM item = get_list_item(list, i);
-                (*iterator)(i, item, allocated);
-        }
-        if (append_null)
-                ((void**)allocated)[i] = NULL;
-        if (length_var)
-                *length_var = length;
-        return allocated;
-}
-
-static inline void
-guile_register_constants()
-{
-        scm_c_define("SHIFT", scm_from_int(WLR_MODIFIER_SHIFT));
-        scm_c_define("CAPS", scm_from_int(WLR_MODIFIER_CAPS));
-        scm_c_define("CTRL", scm_from_int(WLR_MODIFIER_CTRL));
-        scm_c_define("ALT", scm_from_int(WLR_MODIFIER_ALT));
-        scm_c_define("MOD2", scm_from_int(WLR_MODIFIER_MOD2));
-        scm_c_define("MOD3", scm_from_int(WLR_MODIFIER_MOD3));
-        scm_c_define("SUPER", scm_from_int(WLR_MODIFIER_LOGO));
-        scm_c_define("MOD5", scm_from_int(WLR_MODIFIER_MOD5));
-        scm_c_define("MOUSE-LEFT", scm_from_int(BTN_LEFT));
-        scm_c_define("MOUSE-MIDDLE", scm_from_int(BTN_MIDDLE));
-        scm_c_define("MOUSE-RIGHT", scm_from_int(BTN_RIGHT));
-        scm_c_define("TRANSFORM-NORMAL",
-                scm_from_int(WL_OUTPUT_TRANSFORM_NORMAL));
-        scm_c_define("TRANSFORM-ROTATE-90",
-                scm_from_int(WL_OUTPUT_TRANSFORM_90));
-        scm_c_define("TRANSFORM-ROTATE-180",
-                scm_from_int(WL_OUTPUT_TRANSFORM_180));
-        scm_c_define("TRANSFORM-ROTATE-270",
-                scm_from_int(WL_OUTPUT_TRANSFORM_270));
-        scm_c_define("TRANSFORM-FLIPPED",
-                scm_from_int(WL_OUTPUT_TRANSFORM_FLIPPED));
-        scm_c_define("TRANSFORM-FLIPPED-90",
-                scm_from_int(WL_OUTPUT_TRANSFORM_FLIPPED_90));
-        scm_c_define("TRANSFORM-FLIPPED-180",
-                scm_from_int(WL_OUTPUT_TRANSFORM_FLIPPED_180));
-        scm_c_define("TRANSFORM-FLIPPED-270",
-                scm_from_int(WL_OUTPUT_TRANSFORM_FLIPPED_270));
-}
 
 static inline void
 guile_parse_color(unsigned int index, SCM value, void *data)
@@ -264,20 +122,6 @@ guile_parse_xkb_rules(SCM config)
 }
 
 static inline void
-guile_call_arrange(scm_t_bits *arrange, Monitor *m)
-{
-        SCM proc = SCM_PACK_POINTER(arrange);
-        scm_call_1(proc, scm_from_pointer(m, NULL));
-}
-
-static inline void
-guile_call_action(scm_t_bits *action)
-{
-        SCM proc = SCM_PACK_POINTER(action);
-        scm_call_0(proc);
-}
-
-static inline void
 guile_parse_config(char *config_file)
 {
         scm_c_primitive_load(config_file);
@@ -291,27 +135,27 @@ guile_parse_config(char *config_file)
         repeat_delay = get_value_unsigned_int(config, "repeat-delay", 5000);
 
         SCM colors = get_value(config, "colors");
-        rootcolor = iterate_list(colors, "root",
+        rootcolor = guile_iterate_list(colors, "root",
                 sizeof(float), 0, &guile_parse_color, NULL);
-        bordercolor = iterate_list(colors, "border",
+        bordercolor = guile_iterate_list(colors, "border",
                 sizeof(float), 0, &guile_parse_color, NULL);
-        focuscolor = iterate_list(colors, "focus",
+        focuscolor = guile_iterate_list(colors, "focus",
                 sizeof(float), 0, &guile_parse_color, NULL);
-        tags = iterate_list(config, "tags",
+        tags = guile_iterate_list(config, "tags",
                 sizeof(char*), 0, &guile_parse_string, &numtags);
-        termcmd = iterate_list(config, "terminal",
+        termcmd = guile_iterate_list(config, "terminal",
                 sizeof(char*), 1, &guile_parse_string, NULL);
-        menucmd = iterate_list(config, "menu",
+        menucmd = guile_iterate_list(config, "menu",
                 sizeof(char*), 1, &guile_parse_string, NULL);
-        layouts = iterate_list(config, "layouts",
+        layouts = guile_iterate_list(config, "layouts",
                 sizeof(Layout), 0, &guile_parse_layout, &numlayouts);
-        rules = iterate_list(config, "rules",
+        rules = guile_iterate_list(config, "rules",
                 sizeof(Rule), 0, &guile_parse_rule, &numrules);
-        monrules = iterate_list(config, "monitor-rules",
+        monrules = guile_iterate_list(config, "monitor-rules",
                 sizeof(MonitorRule), 0, &guile_parse_monitor_rule, &nummonrules);
-        keys = iterate_list(config, "keys",
+        keys = guile_iterate_list(config, "keys",
                 sizeof(Key), 0, &guile_parse_key, &numkeys);
-        buttons = iterate_list(config, "buttons",
+        buttons = guile_iterate_list(config, "buttons",
                 sizeof(Button), 0, &guile_parse_button, &numbuttons);
         xkb_rules = guile_parse_xkb_rules(config);
 }

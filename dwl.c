@@ -370,8 +370,10 @@ static Atom netatom[NetLast];
 /* attempt to encapsulate suck into one file */
 #include "client.h"
 
-/* include config */
+/* include guile config and bindings */
+#include "guile-utils.h"
 #include "guile-config.h"
+#include "guile-bindings.h"
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
@@ -2572,7 +2574,7 @@ main(int argc, char *argv[])
                 BARF("error: config path must be set using '-c'");
         scm_init_guile();
         guile_register_constants();
-        /* guile_register_procedures(); */
+        guile_register_procedures();
         guile_parse_config(config_file);
 	setup();
 	run(startup_cmd);
