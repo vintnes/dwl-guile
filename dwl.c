@@ -156,7 +156,7 @@ typedef struct {
 } Edge;
 
 typedef struct {
-	const char *symbol;
+	char *symbol;
         scm_t_bits *arrange;
 } Layout;
 
@@ -178,7 +178,7 @@ struct Monitor {
 };
 
 typedef struct {
-	const char *name;
+	char *name;
 	float mfact;
 	int nmaster;
 	float scale;
@@ -189,8 +189,8 @@ typedef struct {
 } MonitorRule;
 
 typedef struct {
-	const char *id;
-	const char *title;
+	char *id;
+	char *title;
 	unsigned int tags;
 	int isfloating;
 	int monitor;
@@ -2576,6 +2576,8 @@ inner_main(void* data, int argc, char **argv)
 	setup();
 	run(startup_cmd);
 	cleanup();
+        guile_cleanup();
+        return;
 usage:
 	BARF("Usage: %s [-c path to config.scm] [-s startup command]", argv[0]);
 }

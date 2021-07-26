@@ -30,8 +30,10 @@ static Key *keys                = NULL;
 static Button *buttons          = NULL;
 static struct xkb_rule_names *xkb_rules = NULL;
 
+static unsigned int numtags     = 0;
 static unsigned int numkeys     = 0;
 static unsigned int numrules    = 0;
+static unsigned int numlayouts  = 0;
 static unsigned int nummonrules = 0;
 static unsigned int numbuttons  = 0;
 
@@ -130,7 +132,7 @@ iterate_list(SCM alist, const char* key, size_t elem_size, int append_null,
                 (*iterator)(i, item, allocated);
         }
         if (append_null)
-                ((void**)allocated)[i+1] = NULL;
+                ((void**)allocated)[i] = NULL;
         if (length_var)
                 *length_var = length;
         return allocated;
@@ -231,6 +233,7 @@ guile_parse_key(unsigned int index, SCM key, void *data)
                 .keysym = keysym,
                 .func = get_value_proc_pointer(key, "action")
         };
+        free(sym);
 }
 
 static inline void
@@ -295,13 +298,13 @@ guile_parse_config(char *config_file)
         focuscolor = iterate_list(colors, "focus",
                 sizeof(float), 0, &guile_parse_color, NULL);
         tags = iterate_list(config, "tags",
-                sizeof(char*), 0, &guile_parse_string, NULL);
+                sizeof(char*), 0, &guile_parse_string, &numtags);
         termcmd = iterate_list(config, "terminal",
                 sizeof(char*), 1, &guile_parse_string, NULL);
         menucmd = iterate_list(config, "menu",
                 sizeof(char*), 1, &guile_parse_string, NULL);
         layouts = iterate_list(config, "layouts",
-                sizeof(Layout), 0, &guile_parse_layout, NULL);
+                sizeof(Layout), 0, &guile_parse_layout, &numlayouts);
         rules = iterate_list(config, "rules",
                 sizeof(Rule), 0, &guile_parse_rule, &numrules);
         monrules = iterate_list(config, "monitor-rules",
@@ -311,4 +314,34 @@ guile_parse_config(char *config_file)
         buttons = iterate_list(config, "buttons",
                 sizeof(Button), 0, &guile_parse_button, &numbuttons);
         xkb_rules = guile_parse_xkb_rules(config);
+}
+
+static inline void
+guile_cleanup()
+{
+        int i;
+        char **str;
+        for (i = 0; i < numtags; i++) free(tags[i]);
+        for (str = termcmd; *str != NULL; str++) free(*str);
+        for (str = menucmd; *str != NULL; str++) free(*str);
+        for (i = 0; i < numlayouts; i++) free(layouts[i].symbol);
+        for (i = 0; i < nummonrules; i++) free(monrules[i].name);
+        for (i = 0; i < numrules; i++) {
+                Rule r = rules[i];
+                free(r.id);
+                free(r.title);
+        }
+        free(layouts);
+        free(monrules);
+        free(keys);
+        free(buttons);
+        free(rootcolor);
+        free(bordercolor);
+        free(focuscolor);
+        free((char*)xkb_rules->rules);
+        free((char*)xkb_rules->model);
+        free((char*)xkb_rules->layout);
+        free((char*)xkb_rules->variant);
+        free((char*)xkb_rules->options);
+        free(xkb_rules);
 }
