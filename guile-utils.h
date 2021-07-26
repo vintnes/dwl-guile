@@ -47,10 +47,13 @@ get_value_float(SCM alist, const char* key)
 static inline scm_t_bits *
 get_value_proc_pointer(SCM alist, const char *key)
 {
-        SCM value = get_value(alist, key);
         scm_t_bits *proc = NULL;
-        if (scm_procedure_p(value) == SCM_BOOL_T)
-                proc = SCM_UNPACK_POINTER(value);
+        SCM value = get_value(alist, key);
+        if (scm_is_false(value))
+                return proc;
+        SCM eval = scm_primitive_eval(value);
+        if (scm_procedure_p(eval) == SCM_BOOL_T)
+                proc = SCM_UNPACK_POINTER(eval);
         return proc;
 }
 
@@ -84,6 +87,13 @@ get_value_modifiers(SCM alist, const char *key)
                 mod |= scm_to_uint32(eval);
         }
         return mod;
+}
+
+static inline unsigned int
+get_value_tag(SCM tag, unsigned int tags)
+{
+        unsigned int maxval = ((1 << (tags + 1)) - 1); /* a poor man's pow */
+        return scm_to_unsigned_integer(tag, 0, maxval);
 }
 
 static inline void *

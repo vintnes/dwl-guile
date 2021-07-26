@@ -3,7 +3,7 @@ guile_proc_monocle(SCM monitor)
 {
         Monitor *m = (Monitor*)scm_to_pointer(monitor);
         monocle(m);
-        return SCM_UNSPECIFIED;
+        return SCM_BOOL_T;
 }
 
 static inline SCM
@@ -11,7 +11,7 @@ guile_proc_tile(SCM monitor)
 {
         Monitor *m = (Monitor*)scm_to_pointer(monitor);
         tile(m);
-        return SCM_UNSPECIFIED;
+        return SCM_BOOL_T;
 }
 
 static inline SCM
@@ -30,7 +30,7 @@ guile_proc_spawn(SCM args)
         cmd_args[i] = NULL;
         Arg a = {.v = cmd_args};
         spawn(&a);
-        return SCM_UNSPECIFIED;
+        return SCM_BOOL_T;
 }
 
 static inline SCM
@@ -46,7 +46,7 @@ guile_proc_spawn_menu()
 {
         Arg a = {.v = menucmd};
         spawn(&a);
-        return SCM_UNSPECIFIED;
+        return SCM_BOOL_T;
 }
 
 static inline SCM
@@ -54,7 +54,7 @@ guile_proc_spawn_terminal()
 {
         Arg a = {.v = termcmd};
         spawn(&a);
-        return SCM_UNSPECIFIED;
+        return SCM_BOOL_T;
 }
 
 static inline SCM
@@ -67,14 +67,53 @@ guile_proc_chvt(SCM tty)
                 return SCM_BOOL_F;
         Arg a = {.ui = (unsigned int)target_tty};
         chvt(&a);
-        return SCM_UNSPECIFIED;
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_view(SCM value)
+{
+        Arg a = {.ui = get_value_tag(value, numtags)};
+        view(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_toggleview(SCM value)
+{
+        Arg a = {.ui = get_value_tag(value, numtags)};
+        toggleview(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_tag(SCM value)
+{
+        Arg a = {.ui = get_value_tag(value, numtags)};
+        tag(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_toggletag(SCM value)
+{
+        Arg a = {.ui = get_value_tag(value, numtags)};
+        toggletag(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_killclient()
+{
+        killclient(NULL);
+        return SCM_BOOL_T;
 }
 
 static inline SCM
 guile_proc_quit()
 {
         quit(NULL);
-        return SCM_UNSPECIFIED;
+        return SCM_BOOL_T;
 }
 
 static inline void
@@ -88,6 +127,7 @@ guile_register_constants()
         scm_c_define("MOD3", scm_from_int(WLR_MODIFIER_MOD3));
         scm_c_define("SUPER", scm_from_int(WLR_MODIFIER_LOGO));
         scm_c_define("MOD5", scm_from_int(WLR_MODIFIER_MOD5));
+        /* TODO: add bindings for other mouse buttons */
         scm_c_define("MOUSE-LEFT", scm_from_int(BTN_LEFT));
         scm_c_define("MOUSE-MIDDLE", scm_from_int(BTN_MIDDLE));
         scm_c_define("MOUSE-RIGHT", scm_from_int(BTN_RIGHT));
@@ -112,12 +152,28 @@ guile_register_constants()
 static inline void
 guile_register_procedures()
 {
-        scm_c_define_gsubr("chvt", 1, 0, 0, &guile_proc_chvt);
-        scm_c_define_gsubr("quit", 0, 0, 0, &guile_proc_quit);
-        scm_c_define_gsubr("tile", 1, 0, 0, &guile_proc_tile);
-        scm_c_define_gsubr("monocle", 1, 0, 0, &guile_proc_monocle);
-        scm_c_define_gsubr("spawn", 1, 0, 0, &guile_proc_spawn);
-        scm_c_define_gsubr("spawn_menu", 0, 0, 0, &guile_proc_spawn_menu);
-        scm_c_define_gsubr("spawn-terminal", 0, 0, 0, &guile_proc_spawn_terminal);
-        scm_c_define_gsubr("shcmd", 1, 0, 0, &guile_proc_shcmd);
+        /* The following bindings are a one-to-one translation
+           of the user-callable functions in dwl. Each scheme function
+           has the same name as the corresponding dwl function, but
+           with a dash ('-') between words. Instead of accepting a
+           `Arg` struct as argument, each scheme function takes
+           in each parameter separately. */
+        scm_c_define_gsubr("dwl:chvt", 1, 0, 0, &guile_proc_chvt);
+        scm_c_define_gsubr("dwl:quit", 0, 0, 0, &guile_proc_quit);
+        scm_c_define_gsubr("dwl:killclient", 0, 0, 0, &guile_proc_killclient);
+        scm_c_define_gsubr("dwl:tile", 1, 0, 0, &guile_proc_tile);
+        scm_c_define_gsubr("dwl:monocle", 1, 0, 0, &guile_proc_monocle);
+        scm_c_define_gsubr("dwl:spawn", 1, 0, 0, &guile_proc_spawn);
+        scm_c_define_gsubr("dwl:view", 1, 0, 0, &guile_proc_view);
+        scm_c_define_gsubr("dwl:toggle-view", 1, 0, 0, &guile_proc_toggleview);
+        scm_c_define_gsubr("dwl:tag", 1, 0, 0, &guile_proc_tag);
+        scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &guile_proc_toggletag);
+
+        /* Custom helper bindings. These bindings corresponds to functions
+           that are not present in dwl by default. They serve as utilites
+           for making certain actions simpler, e.g. spawning your terminal
+           or spawing a generic shell command. */
+        scm_c_define_gsubr("dwl:shcmd", 1, 0, 0, &guile_proc_shcmd);
+        scm_c_define_gsubr("dwl:spawn_menu", 0, 0, 0, &guile_proc_spawn_menu);
+        scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &guile_proc_spawn_terminal);
 }
