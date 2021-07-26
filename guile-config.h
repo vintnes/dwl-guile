@@ -135,27 +135,27 @@ guile_parse_config(char *config_file)
         repeat_delay = get_value_unsigned_int(config, "repeat-delay", 5000);
 
         SCM colors = get_value(config, "colors");
-        rootcolor = guile_iterate_list(colors, "root",
+        rootcolor = guile_iterate_list(get_value(colors, "root"),
                 sizeof(float), 0, &guile_parse_color, NULL);
-        bordercolor = guile_iterate_list(colors, "border",
+        bordercolor = guile_iterate_list(get_value(colors, "border"),
                 sizeof(float), 0, &guile_parse_color, NULL);
-        focuscolor = guile_iterate_list(colors, "focus",
+        focuscolor = guile_iterate_list(get_value(colors, "focus"),
                 sizeof(float), 0, &guile_parse_color, NULL);
-        tags = guile_iterate_list(config, "tags",
+        tags = guile_iterate_list(get_value(config, "tags"),
                 sizeof(char*), 0, &guile_parse_string, &numtags);
-        termcmd = guile_iterate_list(config, "terminal",
+        termcmd = guile_iterate_list(get_value(config, "terminal"),
                 sizeof(char*), 1, &guile_parse_string, NULL);
-        menucmd = guile_iterate_list(config, "menu",
+        menucmd = guile_iterate_list(get_value(config, "menu"),
                 sizeof(char*), 1, &guile_parse_string, NULL);
-        layouts = guile_iterate_list(config, "layouts",
+        layouts = guile_iterate_list(get_value(config, "layouts"),
                 sizeof(Layout), 0, &guile_parse_layout, &numlayouts);
-        rules = guile_iterate_list(config, "rules",
+        rules = guile_iterate_list(get_value(config, "rules"),
                 sizeof(Rule), 0, &guile_parse_rule, &numrules);
-        monrules = guile_iterate_list(config, "monitor-rules",
+        monrules = guile_iterate_list(get_value(config, "monitor-rules"),
                 sizeof(MonitorRule), 0, &guile_parse_monitor_rule, &nummonrules);
-        keys = guile_iterate_list(config, "keys",
+        keys = guile_iterate_list(get_value(config, "keys"),
                 sizeof(Key), 0, &guile_parse_key, &numkeys);
-        buttons = guile_iterate_list(config, "buttons",
+        buttons = guile_iterate_list(get_value(config, "buttons"),
                 sizeof(Button), 0, &guile_parse_button, &numbuttons);
         xkb_rules = guile_parse_xkb_rules(config);
 }

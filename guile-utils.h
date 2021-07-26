@@ -87,11 +87,10 @@ get_value_modifiers(SCM alist, const char *key)
 }
 
 static inline void *
-guile_iterate_list(SCM alist, const char* key, size_t elem_size, int append_null,
+guile_iterate_list(SCM list, size_t elem_size, int append_null,
         void (*iterator)(unsigned int, SCM, void*), unsigned int *length_var)
 {
         unsigned int i = 0, length = 0;
-        SCM list = get_value(alist, key);
         length = get_list_length(list);
         void *allocated = calloc(append_null ? length + 1 : length, elem_size);
         for (; i < length; i++) {
@@ -117,6 +116,8 @@ guile_call_arrange(scm_t_bits *arrange, Monitor *m)
 static inline void
 guile_call_action(scm_t_bits *action)
 {
+        scm_dynwind_begin(0);
         SCM proc = SCM_PACK_POINTER(action);
-        scm_with_continuation_barrier(proc);
+        scm_call_0(proc);
+        scm_dynwind_end();
 }

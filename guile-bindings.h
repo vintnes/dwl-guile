@@ -1,38 +1,80 @@
 static inline SCM
 guile_proc_monocle(SCM monitor)
 {
-    Monitor *m = (Monitor*)scm_to_pointer(monitor);
-    monocle(m);
-    return SCM_UNSPECIFIED;
+        Monitor *m = (Monitor*)scm_to_pointer(monitor);
+        monocle(m);
+        return SCM_UNSPECIFIED;
 }
 
 static inline SCM
 guile_proc_tile(SCM monitor)
 {
-    Monitor *m = (Monitor*)scm_to_pointer(monitor);
-    tile(m);
-    return SCM_UNSPECIFIED;
+        Monitor *m = (Monitor*)scm_to_pointer(monitor);
+        tile(m);
+        return SCM_UNSPECIFIED;
+}
+
+static inline SCM
+guile_proc_spawn(SCM args)
+{
+        if (scm_is_null(args))
+                return SCM_BOOL_F;
+        unsigned int i = 0, length = get_list_length(args);
+        char *cmd_args[length + 1];
+        for (; i < length; i++) {
+                SCM arg_exp = get_list_item(args, i);
+                char *arg = scm_to_locale_string(arg_exp);
+                cmd_args[i] = arg;
+                scm_dynwind_free(arg);
+        }
+        cmd_args[i] = NULL;
+        Arg a = {.v = cmd_args};
+        spawn(&a);
+        return SCM_UNSPECIFIED;
+}
+
+static inline SCM
+guile_proc_shcmd(SCM args)
+{
+        SCM extended = scm_list_3(scm_from_locale_string("/bin/sh"),
+                scm_from_locale_string("-c"), args);
+        return guile_proc_spawn(extended);
+}
+
+static inline SCM
+guile_proc_spawn_menu()
+{
+        Arg a = {.v = menucmd};
+        spawn(&a);
+        return SCM_UNSPECIFIED;
 }
 
 static inline SCM
 guile_proc_spawn_terminal()
 {
-    Arg a = {.v = termcmd};
-    spawn(&a);
-    return SCM_UNSPECIFIED;
+        Arg a = {.v = termcmd};
+        spawn(&a);
+        return SCM_UNSPECIFIED;
 }
 
 static inline SCM
 guile_proc_chvt(SCM tty)
 {
-    if (!scm_is_number(tty))
-            return SCM_BOOL_F;
-    int target_tty = scm_to_int(tty);
-    if (target_tty <= 0 || target_tty > 12)
-            return SCM_BOOL_F;
-    Arg a = {.ui = (unsigned int)target_tty};
-    chvt(&a);
-    return SCM_UNSPECIFIED;
+        if (!scm_is_number(tty))
+                return SCM_BOOL_F;
+        int target_tty = scm_to_int(tty);
+        if (target_tty <= 0 || target_tty > 12)
+                return SCM_BOOL_F;
+        Arg a = {.ui = (unsigned int)target_tty};
+        chvt(&a);
+        return SCM_UNSPECIFIED;
+}
+
+static inline SCM
+guile_proc_quit()
+{
+        quit(NULL);
+        return SCM_UNSPECIFIED;
 }
 
 static inline void
@@ -71,7 +113,11 @@ static inline void
 guile_register_procedures()
 {
         scm_c_define_gsubr("chvt", 1, 0, 0, &guile_proc_chvt);
+        scm_c_define_gsubr("quit", 0, 0, 0, &guile_proc_quit);
         scm_c_define_gsubr("tile", 1, 0, 0, &guile_proc_tile);
         scm_c_define_gsubr("monocle", 1, 0, 0, &guile_proc_monocle);
+        scm_c_define_gsubr("spawn", 1, 0, 0, &guile_proc_spawn);
+        scm_c_define_gsubr("spawn_menu", 0, 0, 0, &guile_proc_spawn_menu);
         scm_c_define_gsubr("spawn-terminal", 0, 0, 0, &guile_proc_spawn_terminal);
+        scm_c_define_gsubr("shcmd", 1, 0, 0, &guile_proc_shcmd);
 }
