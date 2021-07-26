@@ -2546,8 +2546,8 @@ xytoindependent(double x, double y)
 }
 #endif
 
-void
-inner_main(void* data, int argc, char **argv)
+int
+main(int argc, char *argv[])
 {
 	char *startup_cmd = NULL;
 	char *config_file = NULL;
@@ -2570,6 +2570,7 @@ inner_main(void* data, int argc, char **argv)
 		BARF("XDG_RUNTIME_DIR must be set");
         if (!config_file)
                 BARF("error: config path must be set using '-c'");
+        scm_init_guile();
         guile_register_constants();
         /* guile_register_procedures(); */
         guile_parse_config(config_file);
@@ -2577,14 +2578,7 @@ inner_main(void* data, int argc, char **argv)
 	run(startup_cmd);
 	cleanup();
         guile_cleanup();
-        return;
+	return EXIT_SUCCESS;
 usage:
 	BARF("Usage: %s [-c path to config.scm] [-s startup command]", argv[0]);
-}
-
-int
-main(int argc, char *argv[])
-{
-        scm_boot_guile(argc, argv, inner_main, NULL);
-	return EXIT_SUCCESS;
 }
