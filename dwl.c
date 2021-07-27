@@ -56,8 +56,6 @@
 #define CLEANMASK(mask)         (mask & ~WLR_MODIFIER_CAPS)
 #define VISIBLEON(C, M)         ((C)->mon == (M) && ((C)->tags & (M)->tagset[(M)->seltags]))
 #define LENGTH(X)               (sizeof X / sizeof X[0])
-#define END(A)                  ((A) + LENGTH(A))
-#define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define ROUND(X)                ((int)((X)+0.5))
 #define LISTEN(E, L, H)         wl_signal_add((E), ((L)->notify = (H), (L)))
 
@@ -484,7 +482,7 @@ void
 arrange(Monitor *m)
 {
         if (m->lt[m->sellt]->arrange)
-		guile_call_arrange(m->lt[m->sellt]->arrange, m);
+                guile_call(GUILE_PROC_ARRANGE, m->lt[m->sellt]->arrange, m);
         else if (m->fullscreenclient)
 		maximizeclient(m->fullscreenclient);
 	/* TODO recheck pointer focus here... or in resize()? */
@@ -654,7 +652,7 @@ buttonpress(struct wl_listener *listener, void *data)
 		for (b = buttons; b < (buttons + (numbuttons * sizeof(Button))); b++) {
 			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
 					event->button == b->button && b->func) {
-				guile_call_action(b->func);
+                                guile_call(GUILE_PROC_ACTION, b->func, NULL);
 				return;
 			}
 		}
@@ -1257,7 +1255,7 @@ keybinding(uint32_t mods, xkb_keysym_t sym)
 	for (k = keys; k < (keys + (numkeys * sizeof(Key))); k++) {
 		if (CLEANMASK(mods) == CLEANMASK(k->mod) &&
 				sym == k->keysym && k->func) {
-			guile_call_action(k->func);
+			guile_call(GUILE_PROC_ACTION, k->func, NULL);
 			handled = 1;
 		}
 	}

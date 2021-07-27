@@ -4,6 +4,12 @@
 #define GUILE_MAX_LIST_LENGTH   500
 #define GUILE_MAX_TAGS          100
 
+typedef enum { GUILE_PROC_ARRANGE, GUILE_PROC_ACTION } GuileProcType;
+typedef struct {
+        SCM proc;
+        void *args;
+} GuileProcData;
+
 static inline SCM
 get_value(SCM alist, const char* key)
 {
@@ -52,8 +58,10 @@ get_value_proc_pointer(SCM alist, const char *key)
         if (scm_is_false(value))
                 return proc;
         SCM eval = scm_primitive_eval(value);
-        if (scm_procedure_p(eval) == SCM_BOOL_T)
+        if (scm_procedure_p(eval) == SCM_BOOL_T) {
                 proc = SCM_UNPACK_POINTER(eval);
+                scm_gc_protect_object(eval);
+        }
         return proc;
 }
 
@@ -92,8 +100,8 @@ get_value_modifiers(SCM alist, const char *key)
 static inline unsigned int
 get_value_tag(SCM tag, unsigned int tags)
 {
-        unsigned int maxval = ((1 << (tags + 1)) - 1); /* a poor man's pow */
-        return scm_to_unsigned_integer(tag, 0, maxval);
+        unsigned int target_tag = scm_to_unsigned_integer(tag, 1, tags) - 1;
+        return (1 << (target_tag));
 }
 
 static inline void *
@@ -114,20 +122,39 @@ guile_iterate_list(SCM list, size_t elem_size, int append_null,
         return allocated;
 }
 
-static inline void
-guile_call_arrange(scm_t_bits *arrange, Monitor *m)
+static inline void*
+guile_call_action(void *data)
 {
-        scm_dynwind_begin(0);
-        SCM proc = SCM_PACK_POINTER(arrange);
-        scm_call_1(proc, scm_from_pointer(m, NULL));
-        scm_dynwind_end();
+        return scm_call_0(((GuileProcData*)data)->proc);
+}
+
+static inline void*
+guile_call_arrange(void *data)
+{
+        GuileProcData *proc_data = (GuileProcData*)data;
+        SCM mon = scm_from_pointer(proc_data->args, NULL);
+        return scm_call_1(proc_data->proc, mon);
 }
 
 static inline void
-guile_call_action(scm_t_bits *action)
+guile_call(GuileProcType type, scm_t_bits *proc_ptr, void *data)
 {
+        if (proc_ptr == NULL) {
+                fprintf(stderr, "guile: could not call proc that is NULL");
+                return;
+        }
         scm_dynwind_begin(0);
-        SCM proc = SCM_PACK_POINTER(action);
-        scm_call_0(proc);
+        SCM proc = SCM_PACK_POINTER(proc_ptr);
+        GuileProcData proc_data = {.proc = proc, .args = data};
+        void *(*func)(void*) = NULL;
+        switch (type) {
+            case GUILE_PROC_ARRANGE:
+                func = &guile_call_arrange;
+                break;
+            case GUILE_PROC_ACTION:
+            default:
+                func = &guile_call_action;
+        }
+        scm_c_with_continuation_barrier(func, &proc_data);
         scm_dynwind_end();
 }

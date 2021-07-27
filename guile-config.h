@@ -27,6 +27,7 @@ static unsigned int numrules    = 0;
 static unsigned int numlayouts  = 0;
 static unsigned int nummonrules = 0;
 static unsigned int numbuttons  = 0;
+static unsigned int TAGMASK     = 0;
 
 static inline void
 guile_parse_color(unsigned int index, SCM value, void *data)
@@ -43,10 +44,9 @@ guile_parse_string(unsigned int index, SCM str, void *data)
 static inline void
 guile_parse_layout(unsigned int index, SCM layout, void *data)
 {
-        scm_t_bits *proc = get_value_proc_pointer(layout, "arrange");
         ((Layout*)data)[index] = (Layout){
                 .symbol = get_value_string(layout, "symbol"),
-                .arrange = proc
+                .arrange = get_value_proc_pointer(layout, "arrange")
         };
 }
 
@@ -83,6 +83,7 @@ static inline void
 guile_parse_key(unsigned int index, SCM key, void *data)
 {
         char *sym = get_value_string(key, "key");
+        /* TODO: convert keysym to upper when modifiers contain SHIFT */
         xkb_keysym_t keysym = xkb_keysym_from_name(sym, 0);
         if (keysym == XKB_KEY_NoSymbol)
                 BARF("error: invalid xkb key '%s'\n", sym);
@@ -158,6 +159,7 @@ guile_parse_config(char *config_file)
         buttons = guile_iterate_list(get_value(config, "buttons"),
                 sizeof(Button), 0, &guile_parse_button, &numbuttons);
         xkb_rules = guile_parse_xkb_rules(config);
+        TAGMASK = ((1 << numtags) - 1);
 }
 
 static inline void
@@ -177,6 +179,8 @@ guile_cleanup()
         }
         free(layouts);
         free(monrules);
+        /* TODO: iterate keys and call scm_gc_unprotect_object()
+           on the packed scm_t_bits */
         free(keys);
         free(buttons);
         free(rootcolor);
@@ -188,4 +192,5 @@ guile_cleanup()
         free((char*)xkb_rules->variant);
         free((char*)xkb_rules->options);
         free(xkb_rules);
+        /* TODO: run scm_gc()? */
 }
