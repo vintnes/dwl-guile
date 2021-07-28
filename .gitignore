@@ -6,4 +6,4 @@ dwl
 config.h
 config.scm
 dwl.log
-dwl-guile.patch
+*.patch
