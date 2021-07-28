@@ -175,6 +175,14 @@ guile_proc_tag(SCM value)
 }
 
 static inline SCM
+guile_proc_incnmaster(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incnmaster(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
 guile_proc_toggletag(SCM value)
 {
         Arg a = {.ui = get_value_tag(value, numtags)};
@@ -270,6 +278,7 @@ guile_register_procedures()
         scm_c_define_gsubr("dwl:focus-monitor", 1, 0, 0, &guile_proc_focusmon);
         scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &guile_proc_tagmon);
         scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &guile_proc_moveresize);
+        scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &guile_proc_incnmaster);
 
         /* Custom helper bindings. These bindings corresponds to functions
            that are not present in dwl by default. They serve as utilites

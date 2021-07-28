@@ -59,7 +59,7 @@ guile_parse_monitor_rule(unsigned int index, SCM rule, void *data)
         ((MonitorRule*)data)[index] = (MonitorRule){
                 .name = get_value_string(rule, "name"),
                 .mfact = get_value_float(rule, "master-factor"),
-                .nmaster = get_value_int(rule, "number-of-masters"),
+                .nmaster = get_value_int(rule, "masters"),
                 .scale = get_value_float(rule, "scale"),
                 .lt = &layouts[get_value_int(rule, "layout")],
                 .rr = (enum wl_output_transform)scm_to_int(eval),
