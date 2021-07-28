@@ -83,16 +83,16 @@ guile_parse_rule(unsigned int index, SCM rule, void *data)
 static inline void
 guile_parse_key(unsigned int index, SCM key, void *data)
 {
-        char *sym = get_value_string(key, "key");
-        xkb_keysym_t keysym = xkb_keysym_from_name(sym, 0);
-        if (keysym == XKB_KEY_NoSymbol)
-                BARF("error: invalid xkb key '%s'\n", sym);
+        xkb_keycode_t keycode = get_value_unsigned_int(key, "key", -1);
+        /* Should we use `xkb_keycode_is_legal_x11`? */
+        if (!xkb_keycode_is_legal_x11(keycode)
+                || !xkb_keycode_is_legal_ext(keycode))
+                BARF("guile: keycode '%d' is not a legal keycode\n", keycode);
         ((Key*)data)[index] = (Key){
                 .mod = get_value_modifiers(key, "modifiers"),
-                .keysym = keysym,
+                .keycode = keycode,
                 .func = get_value_proc_pointer(key, "action")
         };
-        free(sym);
 }
 
 static inline void
