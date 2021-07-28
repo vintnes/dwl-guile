@@ -84,7 +84,6 @@ static inline void
 guile_parse_key(unsigned int index, SCM key, void *data)
 {
         char *sym = get_value_string(key, "key");
-        /* TODO: convert keysym to upper when modifiers contain SHIFT */
         xkb_keysym_t keysym = xkb_keysym_from_name(sym, 0);
         if (keysym == XKB_KEY_NoSymbol)
                 BARF("error: invalid xkb key '%s'\n", sym);
@@ -166,6 +165,7 @@ guile_parse_config(char *config_file)
 static inline void
 guile_cleanup()
 {
+        fprintf(stdout, "guile: starting cleanup\n");
         int i;
         char **str;
         for (i = 0; i < numtags; i++) free(tags[i]);
@@ -181,7 +181,7 @@ guile_cleanup()
         free(layouts);
         free(monrules);
         /* TODO: iterate keys and call scm_gc_unprotect_object()
-           on the packed scm_t_bits */
+           on the packed scm_t_bits? */
         free(keys);
         free(buttons);
         free(rootcolor);

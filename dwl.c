@@ -2577,8 +2577,8 @@ main(int argc, char *argv[])
         guile_parse_config(config_file);
 	setup();
 	run(startup_cmd);
-	cleanup();
         guile_cleanup();
+	cleanup();
 	return EXIT_SUCCESS;
 usage:
 	BARF("Usage: %s [-c path to config.scm] [-s startup command]", argv[0]);
