@@ -183,6 +183,14 @@ guile_proc_toggletag(SCM value)
 }
 
 static inline SCM
+guile_proc_moveresize(SCM cursor)
+{
+        Arg a = {.ui = scm_to_unsigned_integer(cursor, 0, CurResize)};
+        moveresize(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
 guile_proc_killclient()
 {
         killclient(NULL);
@@ -213,6 +221,9 @@ guile_register_constants()
         scm_c_define("MOUSE-LEFT", scm_from_int(BTN_LEFT));
         scm_c_define("MOUSE-MIDDLE", scm_from_int(BTN_MIDDLE));
         scm_c_define("MOUSE-RIGHT", scm_from_int(BTN_RIGHT));
+        scm_c_define("CURSOR-NORMAL", scm_from_int(CurNormal));
+        scm_c_define("CURSOR-MOVE", scm_from_int(CurMove));
+        scm_c_define("CURSOR-RESIZE", scm_from_int(CurResize));
         scm_c_define("TRANSFORM-NORMAL",
                 scm_from_int(WL_OUTPUT_TRANSFORM_NORMAL));
         scm_c_define("TRANSFORM-ROTATE-90",
@@ -252,13 +263,13 @@ guile_register_procedures()
         scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &guile_proc_toggletag);
         scm_c_define_gsubr("dwl:focus-stack", 1, 0, 0, &guile_proc_focusstack);
         scm_c_define_gsubr("dwl:set-master-factor", 1, 0, 0, &guile_proc_setmfact);
-        /* scm_c_define_gsubr("dwl:toggle-gaps", 0, 0, 0, &guile_proc_togglegaps); */
         scm_c_define_gsubr("dwl:zoom", 0, 0, 0, &guile_proc_zoom);
         scm_c_define_gsubr("dwl:set-layout", 1, 0, 0, &guile_proc_setlayout);
         scm_c_define_gsubr("dwl:toggle-fullscreen", 0, 0, 0, &guile_proc_togglefullscreen);
         scm_c_define_gsubr("dwl:toggle-floating", 0, 0, 0, &guile_proc_togglefloating);
         scm_c_define_gsubr("dwl:focus-monitor", 1, 0, 0, &guile_proc_focusmon);
         scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &guile_proc_tagmon);
+        scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &guile_proc_moveresize);
 
         /* Custom helper bindings. These bindings corresponds to functions
            that are not present in dwl by default. They serve as utilites
