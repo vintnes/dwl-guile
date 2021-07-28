@@ -276,6 +276,6 @@ guile_register_procedures()
            for making certain actions simpler, e.g. spawning your terminal
            or spawing a generic shell command. */
         scm_c_define_gsubr("dwl:shcmd", 1, 0, 0, &guile_proc_shcmd);
-        scm_c_define_gsubr("dwl:spawn_menu", 0, 0, 0, &guile_proc_spawn_menu);
+        scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &guile_proc_spawn_menu);
         scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &guile_proc_spawn_terminal);
 }
