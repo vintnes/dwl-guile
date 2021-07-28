@@ -58,6 +58,86 @@ guile_proc_spawn_terminal()
 }
 
 static inline SCM
+guile_proc_focusstack(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        focusstack(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_setmfact(SCM value)
+{
+        Arg a = {.f = scm_to_double(value)};
+        setmfact(&a);
+        return SCM_BOOL_T;
+}
+
+/* static inline SCM */
+/* guile_proc_togglegaps() */
+/* { */
+/*         togglegaps(NULL); */
+/*         return SCM_BOOL_T; */
+/* } */
+
+static inline SCM
+guile_proc_togglefloating()
+{
+        togglefloating(NULL);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_zoom()
+{
+        zoom(NULL);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_setlayout(SCM value)
+{
+        char *id = scm_to_locale_string(value);
+
+        Layout *layout = NULL;
+        for (int i = 0; i < numlayouts; i++) {
+            if (strcmp(layouts[i].id, id) == 0)
+                layout = &layouts[i];
+        }
+        if (layout == NULL)
+            return SCM_BOOL_F;
+        Arg a = {.v = layout};
+
+        setlayout(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_togglefullscreen()
+{
+        togglefullscreen(NULL);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_focusmon(SCM value)
+{
+        SCM eval = scm_primitive_eval(value);
+        Arg a = {.i = scm_to_int(eval)};
+        focusmon(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+guile_proc_tagmon(SCM value)
+{
+        SCM eval = scm_primitive_eval(value);
+        Arg a = {.i = scm_to_int(eval)};
+        tagmon(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
 guile_proc_chvt(SCM tty)
 {
         if (!scm_is_number(tty))
@@ -128,6 +208,8 @@ guile_register_constants()
         scm_c_define("SUPER", scm_from_int(WLR_MODIFIER_LOGO));
         scm_c_define("MOD5", scm_from_int(WLR_MODIFIER_MOD5));
         /* TODO: add bindings for other mouse buttons */
+        scm_c_define("DIRECTION-LEFT", scm_from_int(WLR_DIRECTION_LEFT));
+        scm_c_define("DIRECTION-RIGHT", scm_from_int(WLR_DIRECTION_RIGHT));
         scm_c_define("MOUSE-LEFT", scm_from_int(BTN_LEFT));
         scm_c_define("MOUSE-MIDDLE", scm_from_int(BTN_MIDDLE));
         scm_c_define("MOUSE-RIGHT", scm_from_int(BTN_RIGHT));
@@ -168,6 +250,15 @@ guile_register_procedures()
         scm_c_define_gsubr("dwl:toggle-view", 1, 0, 0, &guile_proc_toggleview);
         scm_c_define_gsubr("dwl:tag", 1, 0, 0, &guile_proc_tag);
         scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &guile_proc_toggletag);
+        scm_c_define_gsubr("dwl:focus-stack", 1, 0, 0, &guile_proc_focusstack);
+        scm_c_define_gsubr("dwl:set-master-factor", 1, 0, 0, &guile_proc_setmfact);
+        /* scm_c_define_gsubr("dwl:toggle-gaps", 0, 0, 0, &guile_proc_togglegaps); */
+        scm_c_define_gsubr("dwl:zoom", 0, 0, 0, &guile_proc_zoom);
+        scm_c_define_gsubr("dwl:set-layout", 1, 0, 0, &guile_proc_setlayout);
+        scm_c_define_gsubr("dwl:toggle-fullscreen", 0, 0, 0, &guile_proc_togglefullscreen);
+        scm_c_define_gsubr("dwl:toggle-floating", 0, 0, 0, &guile_proc_togglefloating);
+        scm_c_define_gsubr("dwl:focus-monitor", 1, 0, 0, &guile_proc_focusmon);
+        scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &guile_proc_tagmon);
 
         /* Custom helper bindings. These bindings corresponds to functions
            that are not present in dwl by default. They serve as utilites

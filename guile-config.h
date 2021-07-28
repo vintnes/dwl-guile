@@ -45,6 +45,7 @@ static inline void
 guile_parse_layout(unsigned int index, SCM layout, void *data)
 {
         ((Layout*)data)[index] = (Layout){
+                .id = get_value_string(layout, "id"),
                 .symbol = get_value_string(layout, "symbol"),
                 .arrange = get_value_proc_pointer(layout, "arrange")
         };

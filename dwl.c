@@ -156,6 +156,7 @@ typedef struct {
 typedef struct {
 	char *symbol;
         scm_t_bits *arrange;
+        char *id;
 } Layout;
 
 struct Monitor {
