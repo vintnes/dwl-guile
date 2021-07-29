@@ -13,7 +13,7 @@ typedef struct {
 static inline SCM
 get_value(SCM alist, const char* key)
 {
-        return scm_assoc_ref(alist, scm_from_locale_string(key));
+        return scm_assoc_ref(alist, scm_from_utf8_string(key));
 }
 
 static inline char*

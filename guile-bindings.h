@@ -37,8 +37,8 @@ guile_proc_spawn(SCM args)
 static inline SCM
 guile_proc_shcmd(SCM args)
 {
-        SCM extended = scm_list_3(scm_from_locale_string("/bin/sh"),
-                scm_from_locale_string("-c"), args);
+        SCM extended = scm_list_3(scm_from_utf8_string("/bin/sh"),
+                scm_from_utf8_string("-c"), args);
         return guile_proc_spawn(extended);
 }
 
