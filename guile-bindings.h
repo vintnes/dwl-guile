@@ -29,6 +29,8 @@ guile_proc_spawn(SCM args)
         cmd_args[i] = NULL;
         Arg a = {.v = cmd_args};
         spawn(&a);
+        for (char **iter = cmd_args; *iter != NULL; iter++)
+                free(*iter);
         return SCM_BOOL_T;
 }
 
@@ -72,13 +74,6 @@ guile_proc_setmfact(SCM value)
         return SCM_BOOL_T;
 }
 
-/* static inline SCM */
-/* guile_proc_togglegaps() */
-/* { */
-/*         togglegaps(NULL); */
-/*         return SCM_BOOL_T; */
-/* } */
-
 static inline SCM
 guile_proc_togglefloating()
 {
@@ -97,17 +92,16 @@ static inline SCM
 guile_proc_setlayout(SCM value)
 {
         char *id = scm_to_locale_string(value);
-
         Layout *layout = NULL;
         for (int i = 0; i < numlayouts; i++) {
-            if (strcmp(layouts[i].id, id) == 0)
-                layout = &layouts[i];
+                if (strcmp(layouts[i].id, id) == 0)
+                        layout = &layouts[i];
         }
         if (layout == NULL)
-            return SCM_BOOL_F;
+                return SCM_BOOL_F;
         Arg a = {.v = layout};
-
         setlayout(&a);
+        free(id);
         return SCM_BOOL_T;
 }
 
