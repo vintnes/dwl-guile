@@ -10,7 +10,7 @@ do
     git diff $1 patch/$patch \
         ':(exclude)README.md' \
         ':(exclude)patches' \
-        ':(exclude)scripts' \
+        ':(exclude)scripts/create-patches.sh' \
         ':(exclude).gitignore' > patches/$patch.patch
 done
 
