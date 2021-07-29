@@ -370,9 +370,9 @@ static Atom netatom[NetLast];
 #include "client.h"
 
 /* include guile config and bindings */
-#include "guile-utils.h"
-#include "guile-config.h"
-#include "guile-bindings.h"
+#include "dscm-utils.h"
+#include "dscm-config.h"
+#include "dscm-bindings.h"
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
@@ -483,7 +483,7 @@ void
 arrange(Monitor *m)
 {
         if (m->lt[m->sellt]->arrange)
-                guile_call(GUILE_PROC_ARRANGE, m->lt[m->sellt]->arrange, m);
+                dscm_safe_call(DSCM_CALL_ARRANGE, m->lt[m->sellt]->arrange, m);
         else if (m->fullscreenclient)
 		maximizeclient(m->fullscreenclient);
 	/* TODO recheck pointer focus here... or in resize()? */
@@ -653,7 +653,7 @@ buttonpress(struct wl_listener *listener, void *data)
 		for (b = buttons; b < (buttons + (numbuttons * sizeof(Button))); b++) {
 			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
 					event->button == b->button && b->func) {
-                                guile_call(GUILE_PROC_ACTION, b->func, NULL);
+                                dscm_safe_call(DSCM_CALL_ACTION, b->func, NULL);
 				return;
 			}
 		}
@@ -1256,7 +1256,7 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 	for (k = keys; k < (keys + (numkeys * sizeof(Key))); k++) {
 		if (CLEANMASK(mods) == CLEANMASK(k->mod) &&
                                 keycode == k->keycode && k->func) {
-			guile_call(GUILE_PROC_ACTION, k->func, NULL);
+			dscm_safe_call(DSCM_CALL_ACTION, k->func, NULL);
 			handled = 1;
 		}
 	}
@@ -2565,12 +2565,12 @@ main(int argc, char *argv[])
         if (!config_file)
                 BARF("error: config path must be set using '-c'");
         scm_init_guile();
-        guile_register_constants();
-        guile_register_procedures();
-        guile_parse_config(config_file);
+        dscm_register_constants();
+        dscm_register_procedures();
+        dscm_parse_config(config_file);
 	setup();
 	run(startup_cmd);
-        guile_cleanup();
+        dscm_config_cleanup();
 	cleanup();
 	return EXIT_SUCCESS;
 usage:

@@ -44,7 +44,7 @@ idle-protocol.c:
 
 idle-protocol.o: idle-protocol.h
 
-dwl.o: guile-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h idle-protocol.h
+dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h idle-protocol.h
 
 dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o idle-protocol.o
 

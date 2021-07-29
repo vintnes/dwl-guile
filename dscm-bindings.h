@@ -1,5 +1,5 @@
 static inline SCM
-guile_proc_monocle(SCM monitor)
+dscm_binding_monocle(SCM monitor)
 {
         Monitor *m = (Monitor*)scm_to_pointer(monitor);
         monocle(m);
@@ -7,7 +7,7 @@ guile_proc_monocle(SCM monitor)
 }
 
 static inline SCM
-guile_proc_tile(SCM monitor)
+dscm_binding_tile(SCM monitor)
 {
         Monitor *m = (Monitor*)scm_to_pointer(monitor);
         tile(m);
@@ -15,14 +15,14 @@ guile_proc_tile(SCM monitor)
 }
 
 static inline SCM
-guile_proc_spawn(SCM args)
+dscm_binding_spawn(SCM args)
 {
         if (scm_is_null(args))
                 return SCM_BOOL_F;
-        unsigned int i = 0, length = get_list_length(args);
+        unsigned int i = 0, length = dscm_get_list_length(args);
         char *cmd_args[length + 1];
         for (; i < length; i++) {
-                SCM arg_exp = get_list_item(args, i);
+                SCM arg_exp = dscm_get_list_item(args, i);
                 char *arg = scm_to_locale_string(arg_exp);
                 cmd_args[i] = arg;
         }
@@ -35,15 +35,15 @@ guile_proc_spawn(SCM args)
 }
 
 static inline SCM
-guile_proc_shcmd(SCM args)
+dscm_binding_shcmd(SCM args)
 {
         SCM extended = scm_list_3(scm_from_utf8_string("/bin/sh"),
                 scm_from_utf8_string("-c"), args);
-        return guile_proc_spawn(extended);
+        return dscm_binding_spawn(extended);
 }
 
 static inline SCM
-guile_proc_spawn_menu()
+dscm_binding_spawn_menu()
 {
         Arg a = {.v = menucmd};
         spawn(&a);
@@ -51,7 +51,7 @@ guile_proc_spawn_menu()
 }
 
 static inline SCM
-guile_proc_spawn_terminal()
+dscm_binding_spawn_terminal()
 {
         Arg a = {.v = termcmd};
         spawn(&a);
@@ -59,7 +59,7 @@ guile_proc_spawn_terminal()
 }
 
 static inline SCM
-guile_proc_focusstack(SCM value)
+dscm_binding_focusstack(SCM value)
 {
         Arg a = {.i = scm_to_int(value)};
         focusstack(&a);
@@ -67,7 +67,7 @@ guile_proc_focusstack(SCM value)
 }
 
 static inline SCM
-guile_proc_setmfact(SCM value)
+dscm_binding_setmfact(SCM value)
 {
         Arg a = {.f = scm_to_double(value)};
         setmfact(&a);
@@ -75,21 +75,21 @@ guile_proc_setmfact(SCM value)
 }
 
 static inline SCM
-guile_proc_togglefloating()
+dscm_binding_togglefloating()
 {
         togglefloating(NULL);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_zoom()
+dscm_binding_zoom()
 {
         zoom(NULL);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_setlayout(SCM value)
+dscm_binding_setlayout(SCM value)
 {
         char *id = scm_to_locale_string(value);
         Layout *layout = NULL;
@@ -106,14 +106,14 @@ guile_proc_setlayout(SCM value)
 }
 
 static inline SCM
-guile_proc_togglefullscreen()
+dscm_binding_togglefullscreen()
 {
         togglefullscreen(NULL);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_focusmon(SCM value)
+dscm_binding_focusmon(SCM value)
 {
         SCM eval = scm_primitive_eval(value);
         Arg a = {.i = scm_to_int(eval)};
@@ -122,7 +122,7 @@ guile_proc_focusmon(SCM value)
 }
 
 static inline SCM
-guile_proc_tagmon(SCM value)
+dscm_binding_tagmon(SCM value)
 {
         SCM eval = scm_primitive_eval(value);
         Arg a = {.i = scm_to_int(eval)};
@@ -131,7 +131,7 @@ guile_proc_tagmon(SCM value)
 }
 
 static inline SCM
-guile_proc_chvt(SCM tty)
+dscm_binding_chvt(SCM tty)
 {
         if (!scm_is_number(tty))
                 return SCM_BOOL_F;
@@ -144,31 +144,31 @@ guile_proc_chvt(SCM tty)
 }
 
 static inline SCM
-guile_proc_view(SCM value)
+dscm_binding_view(SCM value)
 {
-        Arg a = {.ui = get_value_tag(value, numtags)};
+        Arg a = {.ui = dscm_get_tag(value, numtags)};
         view(&a);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_toggleview(SCM value)
+dscm_binding_toggleview(SCM value)
 {
-        Arg a = {.ui = get_value_tag(value, numtags)};
+        Arg a = {.ui = dscm_get_tag(value, numtags)};
         toggleview(&a);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_tag(SCM value)
+dscm_binding_tag(SCM value)
 {
-        Arg a = {.ui = get_value_tag(value, numtags)};
+        Arg a = {.ui = dscm_get_tag(value, numtags)};
         tag(&a);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_incnmaster(SCM value)
+dscm_binding_incnmaster(SCM value)
 {
         Arg a = {.i = scm_to_int(value)};
         incnmaster(&a);
@@ -176,15 +176,15 @@ guile_proc_incnmaster(SCM value)
 }
 
 static inline SCM
-guile_proc_toggletag(SCM value)
+dscm_binding_toggletag(SCM value)
 {
-        Arg a = {.ui = get_value_tag(value, numtags)};
+        Arg a = {.ui = dscm_get_tag(value, numtags)};
         toggletag(&a);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_moveresize(SCM cursor)
+dscm_binding_moveresize(SCM cursor)
 {
         Arg a = {.ui = scm_to_unsigned_integer(cursor, 0, CurResize)};
         moveresize(&a);
@@ -192,21 +192,21 @@ guile_proc_moveresize(SCM cursor)
 }
 
 static inline SCM
-guile_proc_killclient()
+dscm_binding_killclient()
 {
         killclient(NULL);
         return SCM_BOOL_T;
 }
 
 static inline SCM
-guile_proc_quit()
+dscm_binding_quit()
 {
         quit(NULL);
         return SCM_BOOL_T;
 }
 
 static inline void
-guile_register_constants()
+dscm_register_constants()
 {
         scm_c_define("SHIFT", scm_from_int(WLR_MODIFIER_SHIFT));
         scm_c_define("CAPS", scm_from_int(WLR_MODIFIER_CAPS));
@@ -244,7 +244,7 @@ guile_register_constants()
 }
 
 static inline void
-guile_register_procedures()
+dscm_register_procedures()
 {
         /* The following bindings are a one-to-one translation
            of the user-callable functions in dwl. Each scheme function
@@ -252,32 +252,32 @@ guile_register_procedures()
            with a dash ('-') between words. Instead of accepting a
            `Arg` struct as argument, each scheme function takes
            in each parameter separately. */
-        scm_c_define_gsubr("dwl:chvt", 1, 0, 0, &guile_proc_chvt);
-        scm_c_define_gsubr("dwl:quit", 0, 0, 0, &guile_proc_quit);
-        scm_c_define_gsubr("dwl:killclient", 0, 0, 0, &guile_proc_killclient);
-        scm_c_define_gsubr("dwl:tile", 1, 0, 0, &guile_proc_tile);
-        scm_c_define_gsubr("dwl:monocle", 1, 0, 0, &guile_proc_monocle);
-        scm_c_define_gsubr("dwl:spawn", 1, 0, 0, &guile_proc_spawn);
-        scm_c_define_gsubr("dwl:view", 1, 0, 0, &guile_proc_view);
-        scm_c_define_gsubr("dwl:toggle-view", 1, 0, 0, &guile_proc_toggleview);
-        scm_c_define_gsubr("dwl:tag", 1, 0, 0, &guile_proc_tag);
-        scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &guile_proc_toggletag);
-        scm_c_define_gsubr("dwl:focus-stack", 1, 0, 0, &guile_proc_focusstack);
-        scm_c_define_gsubr("dwl:set-master-factor", 1, 0, 0, &guile_proc_setmfact);
-        scm_c_define_gsubr("dwl:zoom", 0, 0, 0, &guile_proc_zoom);
-        scm_c_define_gsubr("dwl:set-layout", 1, 0, 0, &guile_proc_setlayout);
-        scm_c_define_gsubr("dwl:toggle-fullscreen", 0, 0, 0, &guile_proc_togglefullscreen);
-        scm_c_define_gsubr("dwl:toggle-floating", 0, 0, 0, &guile_proc_togglefloating);
-        scm_c_define_gsubr("dwl:focus-monitor", 1, 0, 0, &guile_proc_focusmon);
-        scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &guile_proc_tagmon);
-        scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &guile_proc_moveresize);
-        scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &guile_proc_incnmaster);
+        scm_c_define_gsubr("dwl:chvt", 1, 0, 0, &dscm_binding_chvt);
+        scm_c_define_gsubr("dwl:quit", 0, 0, 0, &dscm_binding_quit);
+        scm_c_define_gsubr("dwl:killclient", 0, 0, 0, &dscm_binding_killclient);
+        scm_c_define_gsubr("dwl:tile", 1, 0, 0, &dscm_binding_tile);
+        scm_c_define_gsubr("dwl:monocle", 1, 0, 0, &dscm_binding_monocle);
+        scm_c_define_gsubr("dwl:spawn", 1, 0, 0, &dscm_binding_spawn);
+        scm_c_define_gsubr("dwl:view", 1, 0, 0, &dscm_binding_view);
+        scm_c_define_gsubr("dwl:toggle-view", 1, 0, 0, &dscm_binding_toggleview);
+        scm_c_define_gsubr("dwl:tag", 1, 0, 0, &dscm_binding_tag);
+        scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &dscm_binding_toggletag);
+        scm_c_define_gsubr("dwl:focus-stack", 1, 0, 0, &dscm_binding_focusstack);
+        scm_c_define_gsubr("dwl:set-master-factor", 1, 0, 0, &dscm_binding_setmfact);
+        scm_c_define_gsubr("dwl:zoom", 0, 0, 0, &dscm_binding_zoom);
+        scm_c_define_gsubr("dwl:set-layout", 1, 0, 0, &dscm_binding_setlayout);
+        scm_c_define_gsubr("dwl:toggle-fullscreen", 0, 0, 0, &dscm_binding_togglefullscreen);
+        scm_c_define_gsubr("dwl:toggle-floating", 0, 0, 0, &dscm_binding_togglefloating);
+        scm_c_define_gsubr("dwl:focus-monitor", 1, 0, 0, &dscm_binding_focusmon);
+        scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &dscm_binding_tagmon);
+        scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &dscm_binding_moveresize);
+        scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &dscm_binding_incnmaster);
 
         /* Custom helper bindings. These bindings corresponds to functions
            that are not present in dwl by default. They serve as utilites
            for making certain actions simpler, e.g. spawning your terminal
            or spawing a generic shell command. */
-        scm_c_define_gsubr("dwl:shcmd", 1, 0, 0, &guile_proc_shcmd);
-        scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &guile_proc_spawn_menu);
-        scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &guile_proc_spawn_terminal);
+        scm_c_define_gsubr("dwl:shcmd", 1, 0, 0, &dscm_binding_shcmd);
+        scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &dscm_binding_spawn_menu);
+        scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &dscm_binding_spawn_terminal);
 }
