@@ -7,3 +7,4 @@ config.h
 config.scm
 dwl.log
 *.patch
+patches
