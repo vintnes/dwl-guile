@@ -25,7 +25,6 @@ guile_proc_spawn(SCM args)
                 SCM arg_exp = get_list_item(args, i);
                 char *arg = scm_to_locale_string(arg_exp);
                 cmd_args[i] = arg;
-                scm_dynwind_free(arg);
         }
         cmd_args[i] = NULL;
         Arg a = {.v = cmd_args};

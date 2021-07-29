@@ -146,7 +146,6 @@ guile_call(GuileProcType type, scm_t_bits *proc_ptr, void *data)
                 fprintf(stderr, "guile: could not call proc that is NULL");
                 return;
         }
-        scm_dynwind_begin(0);
         SCM proc = SCM_PACK_POINTER(proc_ptr);
         GuileProcData proc_data = {.proc = proc, .args = data};
         void *(*func)(void*) = NULL;
@@ -159,5 +158,4 @@ guile_call(GuileProcType type, scm_t_bits *proc_ptr, void *data)
                 func = &guile_call_action;
         }
         scm_c_with_continuation_barrier(func, &proc_data);
-        scm_dynwind_end();
 }
