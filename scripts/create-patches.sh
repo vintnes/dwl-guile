@@ -7,6 +7,7 @@ mkdir -p patches
 
 for patch in xwayland
 do
+    git fetch origin patch/$patch
     git diff $1 patch/$patch \
         ':(exclude)README.md' \
         ':(exclude)patches' \
