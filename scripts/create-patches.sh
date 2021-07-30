@@ -5,6 +5,11 @@ git fetch --tags
 rm -rf patches
 mkdir -p patches
 
+# Make sure we always have a branch/tag to diff against,
+# otherwise, the patch output will be inverted.
+DIFF_ORIGIN=$1
+[ -z $DIFF_ORIGIN ] && DIFF_ORIGIN="main"
+
 for patch in xwayland
 do
     git fetch origin patch/$patch
