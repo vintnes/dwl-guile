@@ -455,8 +455,8 @@ applyrules(Client *c)
 {
 	/* rule matching */
 	const char *appid, *title;
-	unsigned int i, newtags = 0;
-	const Rule *r;
+	unsigned int j, newtags = 0;
+	Rule r;
 	Monitor *mon = selmon, *m;
 
 	c->isfloating = client_is_float_type(c);
@@ -465,14 +465,15 @@ applyrules(Client *c)
 	if (!(title = client_get_title(c)))
 		title = broken;
 
-	for (r = rules; r < (rules + (numrules * sizeof(Rule))); r++) {
-		if ((!r->title || strstr(title, r->title))
-				&& (!r->id || strstr(appid, r->id))) {
-			c->isfloating = r->isfloating;
-			newtags |= r->tags;
-			i = 0;
+        for (int i = 0; i < numrules; i++) {
+                r = rules[i];
+		if ((!r.title || strstr(title, r.title))
+				&& (!r.id || strstr(appid, r.id))) {
+			c->isfloating = r.isfloating;
+			newtags |= r.tags;
+			j = 0;
 			wl_list_for_each(m, &mons, link)
-				if (r->monitor == i++)
+				if (r.monitor == j++)
 					mon = m;
 		}
 	}
@@ -638,7 +639,7 @@ buttonpress(struct wl_listener *listener, void *data)
 	struct wlr_keyboard *keyboard;
 	uint32_t mods;
 	Client *c;
-	const Button *b;
+	Button b;
 
 	wlr_idle_notify_activity(idle, seat);
 
@@ -650,10 +651,11 @@ buttonpress(struct wl_listener *listener, void *data)
 
 		keyboard = wlr_seat_get_keyboard(seat);
 		mods = wlr_keyboard_get_modifiers(keyboard);
-		for (b = buttons; b < (buttons + (numbuttons * sizeof(Button))); b++) {
-			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
-					event->button == b->button && b->func) {
-                                dscm_safe_call(DSCM_CALL_ACTION, b->func, NULL);
+                for (int i = 0; i < numbuttons; i++) {
+                        b = buttons[i];
+			if (CLEANMASK(mods) == CLEANMASK(b.mod) &&
+					event->button == b.button && b.func) {
+                                dscm_safe_call(DSCM_CALL_ACTION, b.func, NULL);
 				return;
 			}
 		}
@@ -816,7 +818,7 @@ createmon(struct wl_listener *listener, void *data)
 	/* This event is raised by the backend when a new output (aka a display or
 	 * monitor) becomes available. */
 	struct wlr_output *wlr_output = data;
-	const MonitorRule *r;
+	MonitorRule r;
 	Monitor *m = wlr_output->data = calloc(1, sizeof(*m));
 	m->wlr_output = wlr_output;
 
@@ -824,14 +826,15 @@ createmon(struct wl_listener *listener, void *data)
 	for (size_t i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 	m->tagset[0] = m->tagset[1] = 1;
-	for (r = monrules; r < (monrules + (nummonrules * sizeof(MonitorRule))); r++) {
-		if (!r->name || strstr(wlr_output->name, r->name)) {
-			m->mfact = r->mfact;
-			m->nmaster = r->nmaster;
-			wlr_output_set_scale(wlr_output, r->scale);
-			wlr_xcursor_manager_load(cursor_mgr, r->scale);
-			m->lt[0] = m->lt[1] = r->lt;
-			wlr_output_set_transform(wlr_output, r->rr);
+        for (int i = 0; i < nummonrules; i++) {
+                r = monrules[i];
+		if (!r.name || strstr(wlr_output->name, r.name)) {
+			m->mfact = r.mfact;
+			m->nmaster = r.nmaster;
+			wlr_output_set_scale(wlr_output, r.scale);
+			wlr_xcursor_manager_load(cursor_mgr, r.scale);
+			m->lt[0] = m->lt[1] = r.lt;
+			wlr_output_set_transform(wlr_output, r.rr);
 			break;
 		}
 	}
@@ -858,7 +861,7 @@ createmon(struct wl_listener *listener, void *data)
 	 * display, which Wayland clients can see to find out information about the
 	 * output (such as DPI, scale factor, manufacturer, etc).
 	 */
-	wlr_output_layout_add(output_layout, wlr_output, r->x, r->y);
+	wlr_output_layout_add(output_layout, wlr_output, r.x, r.y);
 	sgeom = *wlr_output_layout_get_box(output_layout, NULL);
 
 	/* When adding monitors, the geometries of all monitors must be updated */
@@ -1252,14 +1255,15 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 	 * processing.
 	 */
 	int handled = 0;
-	const Key *k;
-	for (k = keys; k < (keys + (numkeys * sizeof(Key))); k++) {
-		if (CLEANMASK(mods) == CLEANMASK(k->mod) &&
-                                keycode == k->keycode && k->func) {
-			dscm_safe_call(DSCM_CALL_ACTION, k->func, NULL);
+	Key k;
+        for (int i = 0; i < numkeys; i++) {
+                k = keys[i];
+		if (CLEANMASK(mods) == CLEANMASK(k.mod) &&
+                                keycode == k.keycode && k.func) {
+			dscm_safe_call(DSCM_CALL_ACTION, k.func, NULL);
 			handled = 1;
 		}
-	}
+        }
 	return handled;
 }
 
