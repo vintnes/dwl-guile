@@ -206,7 +206,7 @@ dscm_binding_quit()
 }
 
 static inline void
-dscm_register_constants()
+dscm_register()
 {
         scm_c_define("SHIFT", scm_from_int(WLR_MODIFIER_SHIFT));
         scm_c_define("CAPS", scm_from_int(WLR_MODIFIER_CAPS));
