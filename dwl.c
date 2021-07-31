@@ -168,6 +168,10 @@ struct Monitor {
 	struct wlr_box w;      /* window area, layout-relative */
 	struct wl_list layers[4]; // LayerSurface::link
 	const Layout *lt[2];
+	int gappih;           /* horizontal gap between windows */
+	int gappiv;           /* vertical gap between windows */
+	int gappoh;           /* horizontal outer gaps */
+	int gappov;           /* vertical outer gaps */
 	unsigned int seltags;
 	unsigned int sellt;
 	unsigned int tagset[2];
@@ -295,6 +299,16 @@ static struct wlr_surface *xytolayersurface(struct wl_list *layer_surfaces,
 		double x, double y, double *sx, double *sy);
 static Monitor *xytomon(double x, double y);
 static void zoom(const Arg *arg);
+static void setgaps(int oh, int ov, int ih, int iv);
+static void incrgaps(const Arg *arg);
+static void incrigaps(const Arg *arg);
+static void incrogaps(const Arg *arg);
+static void incrohgaps(const Arg *arg);
+static void incrovgaps(const Arg *arg);
+static void incrihgaps(const Arg *arg);
+static void incrivgaps(const Arg *arg);
+static void togglegaps(const Arg *arg);
+static void defaultgaps(const Arg *arg);
 
 /* variables */
 static const char broken[] = "broken";
@@ -331,6 +345,8 @@ static struct wlr_output_layout *output_layout;
 static struct wlr_box sgeom;
 static struct wl_list mons;
 static Monitor *selmon;
+
+static int enablegaps = 1;   /* enables gaps, used by togglegaps */
 
 /* global event handlers */
 static struct wl_listener cursor_axis = {.notify = axisnotify};
@@ -372,6 +388,7 @@ static Atom netatom[NetLast];
 #include "dscm-utils.h"
 #include "dscm-config.h"
 #include "dscm-bindings.h"
+#include "patch-vanitygaps.h"
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
@@ -819,6 +836,10 @@ createmon(struct wl_listener *listener, void *data)
 	MonitorRule r;
 	Monitor *m = wlr_output->data = calloc(1, sizeof(*m));
 	m->wlr_output = wlr_output;
+	m->gappih = gappih;
+	m->gappiv = gappiv;
+	m->gappoh = gappoh;
+	m->gappov = gappov;
 
 	/* Initialize monitor state using configured rules */
 	for (size_t i = 0; i < LENGTH(m->layers); i++)
@@ -1938,6 +1959,111 @@ setfloating(Client *c, int floating)
 }
 
 void
+setgaps(int oh, int ov, int ih, int iv)
+{
+	if (oh < 0) oh = 0;
+	if (ov < 0) ov = 0;
+	if (ih < 0) ih = 0;
+	if (iv < 0) iv = 0;
+
+	selmon->gappoh = oh;
+	selmon->gappov = ov;
+	selmon->gappih = ih;
+	selmon->gappiv = iv;
+	arrange(selmon);
+}
+
+void
+togglegaps(const Arg *arg)
+{
+	enablegaps = !enablegaps;
+	arrange(selmon);
+}
+
+void
+defaultgaps(const Arg *arg)
+{
+	setgaps(gappoh, gappov, gappih, gappiv);
+}
+
+void
+incrgaps(const Arg *arg)
+{
+	setgaps(
+		selmon->gappoh + arg->i,
+		selmon->gappov + arg->i,
+		selmon->gappih + arg->i,
+		selmon->gappiv + arg->i
+	);
+}
+
+void
+incrigaps(const Arg *arg)
+{
+	setgaps(
+		selmon->gappoh,
+		selmon->gappov,
+		selmon->gappih + arg->i,
+		selmon->gappiv + arg->i
+	);
+}
+
+void
+incrogaps(const Arg *arg)
+{
+	setgaps(
+		selmon->gappoh + arg->i,
+		selmon->gappov + arg->i,
+		selmon->gappih,
+		selmon->gappiv
+	);
+}
+
+void
+incrohgaps(const Arg *arg)
+{
+	setgaps(
+		selmon->gappoh + arg->i,
+		selmon->gappov,
+		selmon->gappih,
+		selmon->gappiv
+	);
+}
+
+void
+incrovgaps(const Arg *arg)
+{
+	setgaps(
+		selmon->gappoh,
+		selmon->gappov + arg->i,
+		selmon->gappih,
+		selmon->gappiv
+	);
+}
+
+void
+incrihgaps(const Arg *arg)
+{
+	setgaps(
+		selmon->gappoh,
+		selmon->gappov,
+		selmon->gappih + arg->i,
+		selmon->gappiv
+	);
+}
+
+void
+incrivgaps(const Arg *arg)
+{
+	setgaps(
+		selmon->gappoh,
+		selmon->gappov,
+		selmon->gappih,
+		selmon->gappiv + arg->i
+	);
+}
+
+void
 setlayout(const Arg *arg)
 {
 	if (!arg || !arg->v || arg->v != selmon->lt[selmon->sellt])
@@ -2218,7 +2344,7 @@ tagmon(const Arg *arg)
 void
 tile(Monitor *m)
 {
-	unsigned int i, n = 0, h, mw, my, ty;
+	unsigned int i, n = 0, h, r, oe = enablegaps, ie = enablegaps, mw, my, ty;
 	Client *c;
 
 	wl_list_for_each(c, &clients, link)
@@ -2227,22 +2353,29 @@ tile(Monitor *m)
 	if (n == 0)
 		return;
 
+	if (smartgaps == n) {
+		oe = 0; // outer gaps disabled
+	}
+
 	if (n > m->nmaster)
-		mw = m->nmaster ? m->w.width * m->mfact : 0;
+		mw = m->nmaster ? (m->w.width + m->gappiv*ie) * m->mfact : 0;
 	else
-		mw = m->w.width;
-	i = my = ty = 0;
+		mw = m->w.width - 2*m->gappov*oe + m->gappiv*ie;
+	i = 0;
+	my = ty = m->gappoh*oe;
 	wl_list_for_each(c, &clients, link) {
 		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
 		if (i < m->nmaster) {
-			h = (m->w.height - my) / (MIN(n, m->nmaster) - i);
-			resize(c, m->w.x, m->w.y + my, mw, h, 0);
-			my += c->geom.height;
+			r = MIN(n, m->nmaster) - i;
+			h = (m->w.height - my - m->gappoh*oe - m->gappih*ie * (r - 1)) / r;
+			resize(c, m->w.x + m->gappov*oe, m->w.y + my, mw - m->gappiv*ie, h, 0);
+			my += c->geom.height + m->gappih*ie;
 		} else {
-			h = (m->w.height - ty) / (n - i);
-			resize(c, m->w.x + mw, m->w.y + ty, m->w.width - mw, h, 0);
-			ty += c->geom.height;
+			r = n - i;
+			h = (m->w.height - ty - m->gappoh*oe - m->gappih*ie * (r - 1)) / r;
+			resize(c, m->w.x + mw + m->gappov*oe, m->w.y + ty, m->w.width - mw - 2*m->gappov*oe, h, 0);
+			ty += c->geom.height + m->gappih*ie;
 		}
 		i++;
 	}
@@ -2614,7 +2747,9 @@ main(int argc, char *argv[])
                 BARF("error: config path must be set using '-c'");
         scm_init_guile();
         dscm_register();
+        patch_vanitygaps_register();
         dscm_config_parse(config_file);
+        patch_vanitygaps_config_parse();
 	setup();
 	run(startup_cmd);
         dscm_config_cleanup();

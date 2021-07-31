@@ -1,3 +1,9 @@
+static unsigned int gappih      = 0;
+static unsigned int gappiv      = 0;
+static unsigned int gappoh      = 0;
+static unsigned int gappov      = 0;
+static int smartgaps            = 0;
+
 static inline SCM
 dscm_binding_monocle(SCM monitor)
 {
