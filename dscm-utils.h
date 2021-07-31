@@ -36,15 +36,20 @@ dscm_alist_get_unsigned_int(SCM alist, const char* key, int max)
         return scm_to_unsigned_integer(dscm_alist_get(alist, key), 0, max);
 }
 
-static inline float
-dscm_alist_get_float(SCM alist, const char* key)
+static inline double
+dscm_alist_get_double(SCM alist, const char* key)
 {
         SCM value = dscm_alist_get(alist, key);
         if (scm_is_bool(value))
                 return scm_is_true(value) ? 1 : 0;
-        return (float)scm_to_double(value);
+        return scm_to_double(value);
 }
 
+static inline float
+dscm_alist_get_float(SCM alist, const char* key)
+{
+        return (float)dscm_alist_get_double(alist, key);
+}
 
 static inline scm_t_bits *
 dscm_alist_get_proc_pointer(SCM alist, const char *key)
