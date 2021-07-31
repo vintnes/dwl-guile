@@ -13,7 +13,7 @@ DIFF_ORIGIN=$1
 for patch in xwayland alpha smartborders attachabove
 do
     git fetch origin patch/$patch
-    git diff $1 patch/$patch \
+    git diff $DIFF_ORIGIN patch/$patch \
         ':(exclude)README.md' \
         ':(exclude)patches' \
         ':(exclude)scripts/create-patches.sh' \
