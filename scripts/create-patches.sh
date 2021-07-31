@@ -10,7 +10,7 @@ mkdir -p patches
 DIFF_ORIGIN=$1
 [ -z $DIFF_ORIGIN ] && DIFF_ORIGIN="main"
 
-for patch in xwayland alpha smartborders attachabove focusmon
+for patch in xwayland alpha smartborders attachabove focusmon vanitygaps
 do
     git fetch origin patch/$patch
     git diff $DIFF_ORIGIN patch/$patch \
