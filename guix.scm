@@ -4,6 +4,7 @@
              (guix packages)
              (guix git-download)
              (gnu packages wm)
+             (gnu packages xorg)
              (gnu packages guile))
 
 (define this-directory
@@ -20,7 +21,8 @@
   (name "dwl-guile-devel")
   (inputs
     `(("guile-3.0" ,guile-3.0)
-      ("wlroots-0.13.0" ,wlroots-0.13.0)))
+      ("wlroots-0.13.0" ,wlroots-0.13.0)
+      ("xorg-server-xwayland" ,xorg-server-xwayland)))
   (arguments
     (substitute-keyword-arguments
       (package-arguments dwl)
