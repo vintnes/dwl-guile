@@ -123,7 +123,7 @@ dscm_parse_xkb_rules(SCM config)
 }
 
 static inline void
-dscm_parse_config(char *config_file)
+dscm_config_parse(char *config_file)
 {
         scm_c_primitive_load(config_file);
         SCM config = dscm_get_variable("config");
@@ -180,8 +180,6 @@ dscm_config_cleanup()
         }
         free(layouts);
         free(monrules);
-        /* TODO: iterate keys and call scm_gc_unprotect_object()
-           on the packed scm_t_bits? */
         free(keys);
         free(buttons);
         free(rootcolor);
@@ -193,5 +191,4 @@ dscm_config_cleanup()
         free((char*)xkb_rules->variant);
         free((char*)xkb_rules->options);
         free(xkb_rules);
-        /* TODO: run scm_gc()? */
 }

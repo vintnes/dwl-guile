@@ -241,17 +241,7 @@ dscm_register_constants()
                 scm_from_int(WL_OUTPUT_TRANSFORM_FLIPPED_180));
         scm_c_define("TRANSFORM-FLIPPED-270",
                 scm_from_int(WL_OUTPUT_TRANSFORM_FLIPPED_270));
-}
 
-static inline void
-dscm_register_procedures()
-{
-        /* The following bindings are a one-to-one translation
-           of the user-callable functions in dwl. Each scheme function
-           has the same name as the corresponding dwl function, but
-           with a dash ('-') between words. Instead of accepting a
-           `Arg` struct as argument, each scheme function takes
-           in each parameter separately. */
         scm_c_define_gsubr("dwl:chvt", 1, 0, 0, &dscm_binding_chvt);
         scm_c_define_gsubr("dwl:quit", 0, 0, 0, &dscm_binding_quit);
         scm_c_define_gsubr("dwl:killclient", 0, 0, 0, &dscm_binding_killclient);
@@ -272,11 +262,6 @@ dscm_register_procedures()
         scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &dscm_binding_tagmon);
         scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &dscm_binding_moveresize);
         scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &dscm_binding_incnmaster);
-
-        /* Custom helper bindings. These bindings corresponds to functions
-           that are not present in dwl by default. They serve as utilites
-           for making certain actions simpler, e.g. spawning your terminal
-           or spawing a generic shell command. */
         scm_c_define_gsubr("dwl:shcmd", 1, 0, 0, &dscm_binding_shcmd);
         scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &dscm_binding_spawn_menu);
         scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &dscm_binding_spawn_terminal);

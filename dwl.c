@@ -2569,9 +2569,8 @@ main(int argc, char *argv[])
         if (!config_file)
                 BARF("error: config path must be set using '-c'");
         scm_init_guile();
-        dscm_register_constants();
-        dscm_register_procedures();
-        dscm_parse_config(config_file);
+        dscm_register();
+        dscm_config_parse(config_file);
 	setup();
 	run(startup_cmd);
         dscm_config_cleanup();
