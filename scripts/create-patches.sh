@@ -10,7 +10,7 @@ mkdir -p patches
 DIFF_ORIGIN=$1
 [ -z $DIFF_ORIGIN ] && DIFF_ORIGIN="main"
 
-for patch in xwayland
+for patch in xwayland alpha
 do
     git fetch origin patch/$patch
     git diff $1 patch/$patch \
