@@ -1,5 +1,7 @@
 #pragma once
 
+SCM config;
+
 /* Config variable definitions. */
 /* These will be automatically set from the guile config. */
 static int repeat_rate          = 25;
@@ -126,7 +128,7 @@ static inline void
 dscm_config_parse(char *config_file)
 {
         scm_c_primitive_load(config_file);
-        SCM config = dscm_get_variable("config");
+        config = dscm_get_variable("config");
 
         sloppyfocus = dscm_alist_get_int(config, "sloppy-focus");
         tap_to_click = dscm_alist_get_int(config, "tap-to-click");
