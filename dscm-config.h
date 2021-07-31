@@ -78,7 +78,8 @@ dscm_parse_rule(unsigned int index, SCM rule, void *data)
                 .title = dscm_alist_get_string(rule, "title"),
                 .tags = dscm_alist_get_unsigned_int(rule, "tag", -1),
                 .isfloating = dscm_alist_get_int(rule, "floating"),
-                .monitor = dscm_alist_get_int(rule, "monitor")
+                .monitor = dscm_alist_get_int(rule, "monitor"),
+                .alpha = dscm_alist_get_double(rule, "alpha")
          };
 }
 
