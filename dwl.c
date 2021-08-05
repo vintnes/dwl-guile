@@ -1338,7 +1338,7 @@ void
 mapnotify(struct wl_listener *listener, void *data)
 {
 	/* Called when the surface is mapped, or ready to display on-screen. */
-	Client *c = wl_container_of(listener, c, map);
+	Client *c = wl_container_of(listener, c, map), *oldfocus = selclient();
 
 	if (client_is_unmanaged(c)) {
 		/* Insert this independent into independents lists. */
@@ -1347,8 +1347,13 @@ mapnotify(struct wl_listener *listener, void *data)
 	}
 
 	/* Insert this client into client lists. */
-	wl_list_insert(&clients, &c->link);
-	wl_list_insert(&fstack, &c->flink);
+	if (oldfocus) {
+		wl_list_insert(oldfocus->link.prev, &c->link);
+		wl_list_insert(oldfocus->flink.prev, &c->flink);
+	} else {
+		wl_list_insert(&clients, &c->link);
+		wl_list_insert(&fstack, &c->flink);
+	}
 
 	client_get_geometry(c, &c->geom);
 	c->geom.width += 2 * c->bw;
