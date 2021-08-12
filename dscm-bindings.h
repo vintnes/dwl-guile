@@ -247,7 +247,7 @@ dscm_register()
         scm_c_define_gsubr("dwl:killclient", 0, 0, 0, &dscm_binding_killclient);
         scm_c_define_gsubr("dwl:tile", 1, 0, 0, &dscm_binding_tile);
         scm_c_define_gsubr("dwl:monocle", 1, 0, 0, &dscm_binding_monocle);
-        scm_c_define_gsubr("dwl:spawn", 1, 0, 0, &dscm_binding_spawn);
+        scm_c_define_gsubr("dwl:spawn", 0, 0, 1, &dscm_binding_spawn);
         scm_c_define_gsubr("dwl:view", 1, 0, 0, &dscm_binding_view);
         scm_c_define_gsubr("dwl:toggle-view", 1, 0, 0, &dscm_binding_toggleview);
         scm_c_define_gsubr("dwl:tag", 1, 0, 0, &dscm_binding_tag);
