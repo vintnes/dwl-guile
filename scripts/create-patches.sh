@@ -1,7 +1,7 @@
 #!/bin/sh
 # $1 = dwl-guile patch tag to diff patches to
 
-git fetch --tags
+git fetch --all
 rm -rf patches
 mkdir -p patches
 
@@ -10,7 +10,7 @@ mkdir -p patches
 DIFF_ORIGIN=$1
 [ -z $DIFF_ORIGIN ] && DIFF_ORIGIN="main"
 
-for patch in xwayland alpha smartborders attachabove focusmon vanitygaps
+for patch in xwayland alpha smartborders attachabove focusmon vanitygaps monitor-config
 do
     git fetch origin patch/$patch
     git diff $DIFF_ORIGIN patch/$patch \
