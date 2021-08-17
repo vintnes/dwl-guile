@@ -67,6 +67,10 @@ dscm_parse_monitor_rule(unsigned int index, SCM rule, void *data)
                 .rr = (enum wl_output_transform)scm_to_int(eval),
                 .x = dscm_alist_get_int(rule, "x"),
                 .y = dscm_alist_get_int(rule, "y"),
+                .resx = dscm_alist_get_int(rule, "width"),
+                .resy = dscm_alist_get_int(rule, "height"),
+                .rate = dscm_alist_get_int(rule, "refresh-rate"),
+                .adaptive_sync = dscm_alist_get_int(rule, "adaptive-sync")
         };
 }
 

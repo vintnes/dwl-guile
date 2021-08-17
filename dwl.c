@@ -184,6 +184,10 @@ typedef struct {
 	enum wl_output_transform rr;
 	int x;
 	int y;
+	int resx;
+	int resy;
+	int rate;
+	int adaptive_sync;
 } MonitorRule;
 
 typedef struct {
@@ -811,11 +815,45 @@ createkeyboard(struct wlr_input_device *device)
 }
 
 void
+setmonmode(struct wlr_output *output, int width, int height, float refresh_rate)
+{
+	/* Not all floating point integers can be represented exactly
+	 * as (int)(1000 * mHz / 1000.f)
+	 * round() the result to avoid any error */
+	struct wlr_output_mode *mode, *best = NULL;
+	int mhz = (int)ROUND(refresh_rate * 1000);
+
+	if (wl_list_empty(&output->modes)) {
+		wlr_output_set_custom_mode(output, width, height,
+			refresh_rate > 0 ? mhz : 0);
+		return;
+	}
+
+	wl_list_for_each(mode, &output->modes, link) {
+		if (mode->width == width && mode->height == height) {
+			if (mode->refresh == mhz) {
+				best = mode;
+				break;
+			}
+			if (best == NULL || mode->refresh > best->refresh)
+				best = mode;
+		}
+	}
+
+	if (!best)
+		best = wlr_output_preferred_mode(output);
+
+	wlr_output_set_mode(output, best);
+}
+
+void
 createmon(struct wl_listener *listener, void *data)
 {
 	/* This event is raised by the backend when a new output (aka a display or
 	 * monitor) becomes available. */
 	struct wlr_output *wlr_output = data;
+	const struct wlr_output_mode *wlr_output_mode;
+	int32_t resx, resy, rate;
 	MonitorRule r;
 	Monitor *m = wlr_output->data = calloc(1, sizeof(*m));
 	m->wlr_output = wlr_output;
@@ -824,6 +862,13 @@ createmon(struct wl_listener *listener, void *data)
 	for (size_t i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 	m->tagset[0] = m->tagset[1] = 1;
+
+	/* The mode is a tuple of (width, height, refresh rate), and each
+	 * monitor supports only a specific set of modes. Default to the
+	 * preferred mode, which will be overwritten if the user
+	 * specifies a different one*/
+	wlr_output_set_mode(wlr_output, wlr_output_preferred_mode(wlr_output));
+
         for (int i = 0; i < nummonrules; i++) {
                 r = monrules[i];
 		if (!r.name || strstr(wlr_output->name, r.name)) {
@@ -833,16 +878,16 @@ createmon(struct wl_listener *listener, void *data)
 			wlr_xcursor_manager_load(cursor_mgr, r.scale);
 			m->lt[0] = m->lt[1] = r.lt;
 			wlr_output_set_transform(wlr_output, r.rr);
+			wlr_output_mode = wlr_output_preferred_mode(wlr_output);
+                        rate = r.rate ? r.rate : wlr_output_mode->refresh;
+                        resx = r.resx ? r.resx : wlr_output_mode->width;
+                        resy = r.resy ? r.resy : wlr_output_mode->height;
+			setmonmode(wlr_output, resx, resy, rate);
+                        if (r.adaptive_sync)
+                                        wlr_output_enable_adaptive_sync(wlr_output, 1);
 			break;
 		}
 	}
-
-	/* The mode is a tuple of (width, height, refresh rate), and each
-	 * monitor supports only a specific set of modes. We just pick the
-	 * monitor's preferred mode; a more sophisticated compositor would let
-	 * the user configure it. */
-	wlr_output_set_mode(wlr_output, wlr_output_preferred_mode(wlr_output));
-	wlr_output_enable_adaptive_sync(wlr_output, 1);
 
 	/* Set up event listeners */
 	LISTEN(&wlr_output->events.frame, &m->frame, rendermon);
