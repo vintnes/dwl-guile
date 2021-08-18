@@ -1165,12 +1165,11 @@ focusclient(Client *c, int lift)
 void
 focusmon(const Arg *arg)
 {
-        Monitor *prevm = selmon;
 	do
 		selmon = dirtomon(arg->i);
 	while (!selmon->wlr_output->enabled);
 	focusclient(focustop(selmon), 1);
-	wlr_cursor_move(cursor, NULL, selmon->m.x - prevm->m.x , 0);
+	wlr_cursor_warp(cursor, NULL, selmon->m.width / 2 + selmon->m.x, selmon->m.height / 2 + selmon->m.y);
 }
 
 void
