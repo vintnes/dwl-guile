@@ -1815,6 +1815,27 @@ run(char *startup_cmd)
 	const char *socket = wl_display_add_socket_auto(dpy);
 	if (!socket)
 		BARF("startup: display_add_socket_auto");
+        setenv("WAYLAND_DISPLAY", socket, 1);
+
+	if (startup_cmd) {
+		int piperw[2];
+		pipe(piperw);
+		startup_pid = fork();
+		if (startup_pid < 0)
+			EBARF("startup: fork");
+		if (startup_pid == 0) {
+			dup2(piperw[0], STDIN_FILENO);
+			close(piperw[1]);
+			execl("/bin/sh", "/bin/sh", "-c", startup_cmd, NULL);
+			EBARF("startup: execl");
+		}
+		dup2(piperw[1], STDOUT_FILENO);
+		close(piperw[0]);
+	}
+
+	/* If nobody is reading the status output, don't terminate */
+	signal(SIGPIPE, SIG_IGN);
+	printstatus();
 
 	/* Start the backend. This will enumerate outputs and inputs, become the DRM
 	 * master, etc */
@@ -1831,21 +1852,6 @@ run(char *startup_cmd)
 	 * monitor when displayed here */
 	wlr_cursor_warp_closest(cursor, NULL, cursor->x, cursor->y);
 	wlr_xcursor_manager_set_cursor_image(cursor_mgr, "left_ptr", cursor);
-
-	/* Set the WAYLAND_DISPLAY environment variable to our socket and run the
-	 * startup command if requested. */
-	setenv("WAYLAND_DISPLAY", socket, 1);
-
-	if (startup_cmd) {
-		startup_pid = fork();
-		if (startup_pid < 0)
-			EBARF("startup: fork");
-		if (startup_pid == 0) {
-			dup2(STDERR_FILENO, STDOUT_FILENO);
-			execl("/bin/sh", "/bin/sh", "-c", startup_cmd, NULL);
-			EBARF("startup: execl");
-		}
-	}
 
 	/* Run the Wayland event loop. This does not return until you exit the
 	 * compositor. Starting the backend rigged up all of the necessary event
