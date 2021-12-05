@@ -274,7 +274,7 @@ static void setfullscreen(Client *c, int fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setmon(Client *c, Monitor *m, unsigned int newtags);
-static void setup(void);
+static void setup(char* config_file);
 static void sigchld(int unused);
 static void spawn(const Arg *arg);
 static void tag(const Arg *arg);
@@ -295,6 +295,9 @@ static struct wlr_surface *xytolayersurface(struct wl_list *layer_surfaces,
 		double x, double y, double *sx, double *sy);
 static Monitor *xytomon(double x, double y);
 static void zoom(const Arg *arg);
+
+/* signal actions */
+static int reloadconfig(int signal, void *data);
 
 /* variables */
 static const char broken[] = "broken";
@@ -1831,6 +1834,16 @@ resize(Client *c, int x, int y, int w, int h, int interact)
 }
 
 void
+setupsignals() {
+        /* Block real-time signals so that they can be
+         * used as custom user signals. */
+        struct sigaction sa;
+        sa.sa_handler = SIG_IGN;
+        for (int i = SIGRTMIN; i <= SIGRTMAX; i++)
+                sigaction(i, &sa, NULL);
+}
+
+void
 run(char *startup_cmd)
 {
 	pid_t startup_pid = -1;
@@ -2010,15 +2023,40 @@ setsel(struct wl_listener *listener, void *data)
 	wlr_seat_set_selection(seat, event->source, event->serial);
 }
 
+int
+reloadconfig(int signal, void *data) {
+        Client *c;
+        Monitor *m;
+        char *config_file = (char*)data;
+
+        dscm_config_parse(config_file);
+
+        /* Redraw clients */
+        wl_list_for_each(c, &clients, link) {
+                if (c->bw > 0)
+                        c->bw = borderpx;
+                resize(c, c->geom.x, c->geom.y, c->geom.width, c->geom.height, 0);
+        }
+
+        /* Rearrange clients on all monitors */
+        wl_list_for_each(m, &mons, link)
+                arrange(m);
+
+        return 0;
+}
+
 void
-setup(void)
+setup(char *config_file)
 {
 	/* The Wayland display is managed by libwayland. It handles accepting
 	 * clients from the Unix socket, manging Wayland globals, and so on. */
 	dpy = wl_display_create();
 
-	/* clean up child processes immediately */
+	/* Clean up child processes immediately */
 	sigchld(0);
+
+        /* Block user signals so that they can be handled */
+        setupsignals();
 
 	/* The backend is a wlroots feature which abstracts the underlying input and
 	 * output hardware. The autocreate option will choose the most suitable
@@ -2139,6 +2177,12 @@ setup(void)
 	output_mgr = wlr_output_manager_v1_create(dpy);
 	wl_signal_add(&output_mgr->events.apply, &output_mgr_apply);
 	wl_signal_add(&output_mgr->events.test, &output_mgr_test);
+
+        struct wl_event_loop *loop = wl_display_get_event_loop(dpy);
+
+        /* Add handlers for user signals */
+        /* TODO: Add config option for adding custom handlers to signal. */
+        wl_event_loop_add_signal(loop, SIGRTMIN, &reloadconfig, config_file);
 
 #ifdef XWAYLAND
 	/*
@@ -2615,7 +2659,7 @@ main(int argc, char *argv[])
         scm_init_guile();
         dscm_register();
         dscm_config_parse(config_file);
-	setup();
+	setup(config_file);
 	run(startup_cmd);
         dscm_config_cleanup();
 	cleanup();
