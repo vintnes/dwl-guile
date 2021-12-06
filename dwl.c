@@ -1375,8 +1375,8 @@ monocle(Monitor *m)
         /* Lift selected client */
         c = selclient();
         if (c) {
-            wl_list_remove(&c->slink);
-            wl_list_insert(&stack, &c->slink);
+                wl_list_remove(&c->slink);
+                wl_list_insert(&stack, &c->slink);
         }
 }
 
