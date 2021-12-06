@@ -1371,11 +1371,12 @@ monocle(Monitor *m)
 			continue;
 		resize(c, m->w.x, m->w.y, m->w.width, m->w.height, 0);
 	}
-	/* Lift the focused client. */
-        Client *sel = selclient();
-        if (sel) {
-                wl_list_remove(&c->slink);
-                wl_list_insert(&stack, &c->slink);
+
+        /* Lift selected client */
+        c = selclient();
+        if (c) {
+            wl_list_remove(&c->slink);
+            wl_list_insert(&stack, &c->slink);
         }
 }
 
