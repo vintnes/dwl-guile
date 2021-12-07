@@ -48,6 +48,9 @@
 #include <wlr/xwayland.h>
 #endif
 
+/* constants */
+#define DWL_GUILE_FIFO_PATH     /tmp/dwl-guile.fifo
+
 /* macros */
 #define BARF(fmt, ...)		do { fprintf(stderr, fmt "\n", ##__VA_ARGS__); exit(EXIT_FAILURE); } while (0)
 #define EBARF(fmt, ...)		BARF(fmt ": %s", ##__VA_ARGS__, strerror(errno))
@@ -1856,20 +1859,17 @@ run(char *startup_cmd)
         setenv("WAYLAND_DISPLAY", socket, 1);
 
 	if (startup_cmd) {
-		int piperw[2];
-		pipe(piperw);
 		startup_pid = fork();
 		if (startup_pid < 0)
 			EBARF("startup: fork");
 		if (startup_pid == 0) {
-			dup2(piperw[0], STDIN_FILENO);
-			close(piperw[1]);
 			execl("/bin/sh", "/bin/sh", "-c", startup_cmd, NULL);
 			EBARF("startup: execl");
 		}
-		dup2(piperw[1], STDOUT_FILENO);
-		close(piperw[0]);
 	}
+
+        /* Redirect satus output to file */
+        freopen(DWL_GUILE_FIFO_PATH, "w", stdout);
 
 	/* If nobody is reading the status output, don't terminate */
 	signal(SIGPIPE, SIG_IGN);
