@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<protocol name="dwl_guile_unstable_v1">
+<protocol name="dscm_unstable_v1">
     <copyright>
         Copyright (c) 2021 Raphael Robatsch
         Copyright (c) 2021 Fredrik Engstrand
@@ -25,7 +25,7 @@
         SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     </copyright>
 
-    <interface name="dwl_guile_v1" version="1">
+    <interface name="dscm_v1" version="1">
         <description summary="control the dwl state">
             This interface is exposed as a global in the wl_registry.
 
@@ -35,13 +35,13 @@
 
             After binding, the client will receive the available tags and layouts
             with the 'tag' and 'layout' events. These can be used in subsequent
-            dwl_guile_monitor_v1.set_tags/set_layout requests, and to interpret the
-            dwl_guile_monitor_v1.layout/tag events.
+            dscm_monitor_v1.set_tags/set_layout requests, and to interpret the
+            dscm_monitor_v1.layout/tag events.
         </description>
 
         <request name="release" type="destructor">
-            <description summary="release dwl_guile">
-                This request indicates that the client will not use the dwl_wm
+            <description summary="release dscm">
+                This request indicates that the client will not use the dscm
                 object any more. Objects that have been created through this instance
                 are not affected.
             </description>
@@ -49,10 +49,10 @@
 
         <request name="get_monitor">
             <description summary="gets a dwl monitor from an output">
-                Gets a dwl monitor for the specified output. The window manager
+                Gets a dscm monitor for the specified output. The window manager
                 state on the output can be controlled using the monitor.
             </description>
-            <arg name="id" type="new_id" interface="dwl_guile_monitor_v1" />
+            <arg name="id" type="new_id" interface="dscm_monitor_v1" />
             <arg name="output" type="object" interface="wl_output" />
         </request>
 
@@ -84,7 +84,7 @@
         </event>
     </interface>
 
-    <interface name="dwl_guile_monitor_v1" version="1">
+    <interface name="dscm_monitor_v1" version="1">
         <description summary="control one monitor">
             Observes and controls one monitor.
 
@@ -102,8 +102,8 @@
         </enum>
 
         <request name="release" type="destructor">
-            <description summary="release dwl_monitor">
-                This request indicates that the client is done with this dwl_monitor.
+            <description summary="release dscm_monitor">
+                This request indicates that the client is done with this dscm_monitor.
                 All further requests are ignored.
             </description>
         </request>
@@ -120,7 +120,7 @@
                 Announces the update of a tag. num_clients and focused_client can be
                 used to draw client indicators.
             </description>
-            <arg name="tag" type="uint" summary="index of a tag received by the dwl_guile_v1.tag event." />
+            <arg name="tag" type="uint" summary="index of a tag received by the dscm_v1.tag event." />
             <arg name="state" type="uint" enum="tag_state"/>
             <arg name="num_clients" type="uint" summary="number of clients on this tag"/>
             <arg name="focused_client" type="int" summary="out of num_clients. -1 if there is no focused client"/>
@@ -130,7 +130,7 @@
             <description summary="updates the selected layout">
                 Announces the update of the selected layout.
             </description>
-            <arg name="layout" type="uint" summary="index of a layout received by the dwl_guile_v1.layout event."/>
+            <arg name="layout" type="uint" summary="index of a layout received by the dscm_v1.layout event."/>
         </event>
 
         <event name="title">
@@ -170,7 +170,7 @@
             <description summary="sets the active layout on this monitor.">
                 Changes are applied immediately.
             </description>
-            <arg name="layout" type="uint" summary="index of a layout received by the dwl_guile_v1.layout event."/>
+            <arg name="layout" type="uint" summary="index of a layout received by the dscm_v1.layout event."/>
         </request>
     </interface>
 </protocol>

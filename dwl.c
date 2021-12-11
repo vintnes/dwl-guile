@@ -47,7 +47,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include <libguile.h>
-#include "dwl-guile-unstable-v1-protocol.h"
+#include "dscm-unstable-v1-protocol.h"
 #ifdef XWAYLAND
 #include <X11/Xlib.h>
 #include <wlr/xwayland.h>
@@ -181,7 +181,7 @@ typedef struct {
 	struct wl_list link;
 	struct wl_resource *resource;
 	struct Monitor *monitor;
-} DwlGuileMonitor;
+} DscmMonitor;
 
 struct Monitor {
 	struct wl_list link;
@@ -191,7 +191,7 @@ struct Monitor {
 	struct wlr_box m;      /* monitor area, layout-relative */
 	struct wlr_box w;      /* window area, layout-relative */
 	struct wl_list layers[4]; // LayerSurface::link
-	struct wl_list dwl_guile_monitor_link;
+	struct wl_list dscm;
 	const Layout *lt[2];
 	unsigned int seltags;
 	unsigned int sellt;
@@ -228,19 +228,21 @@ struct render_data {
 	int x, y; /* layout-relative */
 };
 
-static void dwl_guile_monitor_handle_release(struct wl_client *client, struct wl_resource *resource);
-static void dwl_guile_monitor_handle_destroy(struct wl_resource *resource);
-static void dwl_guile_printstatus_to(Monitor *m, const DwlGuileMonitor *mon);
-static void dwl_guile_printstatus(Monitor *m);
-static void dwl_guile_monitor_handle_set_tags(struct wl_client *client, struct wl_resource *resource, uint32_t t, uint32_t toggle_tagset);
-static void dwl_guile_monitor_handle_set_layout(struct wl_client *client, struct wl_resource *resource, uint32_t layout);
-static void dwl_guile_monitor_handle_set_client_tags(struct wl_client *client, struct wl_resource *resource, uint32_t and, uint32_t xor);
-static void dwl_guile_handle_release(struct wl_client *client, struct wl_resource *resource);
-static void dwl_guile_handle_get_monitor(struct wl_client *client, struct wl_resource *resource, uint32_t id, struct wl_resource *output);
-static void dwl_guile_handle_destroy(struct wl_resource *resource);
-static void dwl_guile_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id);
+/* dscm protocol handlers */
+static void dscm_closemon(struct wl_client *client, struct wl_resource *resource);
+static void dscm_destroymon(struct wl_resource *resource);
+static void dscm_printstatusmon(Monitor *m, const DscmMonitor *mon);
+static void dscm_printstatus(Monitor *m);
+static void dscm_settags(struct wl_client *client, struct wl_resource *resource, uint32_t t, uint32_t toggle_tagset);
+static void dscm_setlayout(struct wl_client *client, struct wl_resource *resource, uint32_t layout);
+static void dscm_setclient(struct wl_client *client, struct wl_resource *resource, uint32_t and, uint32_t xor);
+static void dscm_release(struct wl_client *client, struct wl_resource *resource);
+static void dscm_getmon(struct wl_client *client, struct wl_resource *resource, uint32_t id, struct wl_resource *output);
+static void dscm_destroy(struct wl_resource *resource);
+static void dscm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id);
 
 /* function declarations */
+static void serializecolor(struct wl_array *array, float* color);
 static void applybounds(Client *c, struct wlr_box *bbox);
 static void applyexclusive(struct wlr_box *usable_area, uint32_t anchor,
 		int32_t exclusive, int32_t margin_top, int32_t margin_right,
@@ -394,15 +396,17 @@ static struct wl_listener request_activate = {.notify = urgent};
 static struct wl_listener request_cursor = {.notify = setcursor};
 static struct wl_listener request_set_psel = {.notify = setpsel};
 static struct wl_listener request_set_sel = {.notify = setsel};
-static struct dwl_guile_monitor_v1_interface dwl_guile_monitor_implementation = {
-	.release = dwl_guile_monitor_handle_release,
-	.set_tags = dwl_guile_monitor_handle_set_tags,
-	.set_layout = dwl_guile_monitor_handle_set_layout,
-	.set_client_tags = dwl_guile_monitor_handle_set_client_tags,
+
+/* dscm event handlers */
+static struct dscm_monitor_v1_interface dscm_monitor_implementation = {
+	.release = dscm_closemon,
+	.set_tags = dscm_settags,
+	.set_layout = dscm_setlayout,
+	.set_client_tags = dscm_setclient,
 };
-static struct dwl_guile_v1_interface dwl_guile_implementation = {
-	.release = dwl_guile_handle_release,
-	.get_monitor = dwl_guile_handle_get_monitor,
+static struct dscm_v1_interface dscm_implementation = {
+	.release = dscm_release,
+	.get_monitor = dscm_getmon,
 };
 
 #ifdef XWAYLAND
@@ -775,7 +779,7 @@ void
 cleanupmon(struct wl_listener *listener, void *data)
 {
 	struct wlr_output *wlr_output = data;
-	DwlGuileMonitor *mon, *montmp;
+	DscmMonitor *mon, *montmp;
 	Monitor *m = wlr_output->data;
 	int nmons, i = 0;
 
@@ -783,7 +787,7 @@ cleanupmon(struct wl_listener *listener, void *data)
 	wl_list_remove(&m->frame.link);
 	wl_list_remove(&m->link);
 	wlr_output_layout_remove(output_layout, m->wlr_output);
-	wl_list_for_each_safe(mon, montmp, &m->dwl_guile_monitor_link, link) {
+	wl_list_for_each_safe(mon, montmp, &m->dscm, link) {
 		wl_resource_set_user_data(mon->resource, NULL);
 		free(mon);
 	}
@@ -899,7 +903,7 @@ createmon(struct wl_listener *listener, void *data)
 	struct wlr_output *wlr_output = data;
 	MonitorRule r;
 	Monitor *m = wlr_output->data = calloc(1, sizeof(*m));
-	wl_list_init(&m->dwl_guile_monitor_link);
+	wl_list_init(&m->dscm);
 	m->wlr_output = wlr_output;
 
 	/* Initialize monitor state using configured rules */
@@ -1736,7 +1740,7 @@ printstatus(void)
 		printf("%s tags %u %u %u %u\n", m->wlr_output->name, occ, m->tagset[m->seltags],
 				sel, urg);
 		printf("%s layout %s\n", m->wlr_output->name, m->lt[m->sellt]->symbol);
-		dwl_guile_printstatus(m);
+		dscm_printstatus(m);
 	}
 	fflush(stdout);
 }
@@ -2326,7 +2330,7 @@ setup(char *config_file)
         wl_event_loop_add_signal(loop, SIGRTMIN, &reloadconfig, config_file);
 
 	presentation = wlr_presentation_create(dpy, backend);
-	wl_global_create(dpy, &dwl_guile_v1_interface, 1, NULL, dwl_guile_bind);
+	wl_global_create(dpy, &dscm_v1_interface, 1, NULL, dscm_bind);
 
 #ifdef XWAYLAND
 	/*
@@ -2834,6 +2838,194 @@ xytoindependent(double x, double y)
 }
 #endif
 
+void
+serializecolor(struct wl_array *array, float* color)
+{
+        float *data;
+        size_t size = 4 * sizeof(float);
+        wl_array_init(array);
+        data = (float*)wl_array_add(array, size);
+        memcpy(data, color, size);
+}
+
+void
+dscm_closemon(struct wl_client *client, struct wl_resource *resource)
+{
+	wl_resource_destroy(resource);
+}
+
+void
+dscm_destroymon(struct wl_resource *resource) {
+	DscmMonitor *mon = wl_resource_get_user_data(resource);
+	if (mon) {
+		wl_list_remove(&mon->link);
+		free(mon);
+	}
+}
+
+void
+dscm_printstatusmon(Monitor *m, const DscmMonitor *mon)
+{
+	Client *c, *focused;
+	int tagmask, state, numclients, focusedclient;
+	focused = focustop(m);
+	dscm_monitor_v1_send_selected(mon->resource, m == selmon);
+
+	for (int tag = 0; tag < numtags; tag++) {
+		numclients = state = 0;
+		focusedclient = -1;
+		tagmask = 1 << tag;
+		if ((tagmask & m->tagset[m->seltags]) != 0)
+			state = state | DSCM_MONITOR_V1_TAG_STATE_ACTIVE;
+		wl_list_for_each(c, &clients, link) {
+			if (c->mon != m)
+				continue;
+			if (!(c->tags & tagmask))
+				continue;
+			if (c == focused)
+				focusedclient = numclients;
+			numclients++;
+			if (c->isurgent)
+				state = state | DSCM_MONITOR_V1_TAG_STATE_URGENT;
+		}
+		dscm_monitor_v1_send_tag(mon->resource, tag, state, numclients, focusedclient);
+	}
+	dscm_monitor_v1_send_layout(mon->resource, m->lt[m->sellt] - layouts);
+	dscm_monitor_v1_send_title(mon->resource, focused ? client_get_title(focused) : "");
+	dscm_monitor_v1_send_frame(mon->resource);
+}
+
+void
+dscm_printstatus(Monitor *m)
+{
+	DscmMonitor *mon;
+	wl_list_for_each(mon, &m->dscm, link)
+		dscm_printstatusmon(m, mon);
+}
+
+void
+dscm_settags(struct wl_client *client, struct wl_resource *resource,
+	uint32_t t, uint32_t toggletagset)
+{
+	DscmMonitor *mon;
+	Monitor *m;
+	mon = wl_resource_get_user_data(resource);
+	if (!mon)
+		return;
+	m = mon->monitor;
+	if ((t & TAGMASK) == m->tagset[m->seltags])
+		return;
+	if (toggletagset)
+		m->seltags ^= 1;
+	if (t & TAGMASK)
+		m->tagset[m->seltags] = t & TAGMASK;
+
+	focusclient(focustop(m), 1);
+	arrange(m);
+	printstatus();
+}
+
+void
+dscm_setlayout(struct wl_client *client, struct wl_resource *resource,
+	uint32_t layout)
+{
+	DscmMonitor *mon;
+	Monitor *m;
+	mon = wl_resource_get_user_data(resource);
+	if (!mon)
+		return;
+	m = mon->monitor;
+	if (layout >= numlayouts)
+		return;
+	if (layout != m->lt[m->sellt] - layouts)
+		m->sellt ^= 1;
+
+	m->lt[m->sellt] = &layouts[layout];
+	arrange(m);
+	printstatus();
+}
+
+void
+dscm_setclient(struct wl_client *client, struct wl_resource *resource,
+	uint32_t and, uint32_t xor)
+{
+	DscmMonitor *mon;
+	Client *sel;
+	unsigned int newtags;
+	mon = wl_resource_get_user_data(resource);
+	if (!mon)
+		return;
+	sel = focustop(mon->monitor);
+	if (!sel)
+		return;
+	newtags = (sel->tags & and) ^ xor;
+	if (newtags) {
+		sel->tags = newtags;
+		focusclient(focustop(selmon), 1);
+		arrange(selmon);
+		printstatus();
+	}
+}
+
+void
+dscm_release(struct wl_client *client, struct wl_resource *resource)
+{
+	wl_resource_destroy(resource);
+}
+
+void
+dscm_getmon(struct wl_client *client, struct wl_resource *resource,
+	uint32_t id, struct wl_resource *output)
+{
+	DscmMonitor *mon;
+	struct wlr_output *wlr_output = wlr_output_from_resource(output);
+	struct Monitor *m = wlr_output->data;
+	struct wl_resource *dscm_resource = wl_resource_create(client,
+		&dscm_monitor_v1_interface, wl_resource_get_version(resource), id);
+	if (!resource) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	mon = calloc(1, sizeof(DscmMonitor));
+	mon->resource = dscm_resource;
+	mon->monitor = m;
+	wl_resource_set_implementation(dscm_resource, &dscm_monitor_implementation,
+                mon, dscm_destroymon);
+	wl_list_insert(&m->dscm, &mon->link);
+	dscm_printstatusmon(m, mon);
+}
+
+void
+dscm_destroy(struct wl_resource *resource)
+{
+	/* no state to destroy */
+}
+
+void
+dscm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
+{
+        struct wl_array root, border, focus;
+	struct wl_resource *resource = wl_resource_create(client,
+		&dscm_v1_interface, version, id);
+	if (!resource) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	wl_resource_set_implementation(resource, &dscm_implementation, NULL, dscm_destroy);
+
+	for (int i = 0; i < numtags; i++)
+		dscm_v1_send_tag(resource, tags[i]);
+	for (int i = 0; i < numlayouts; i++)
+		dscm_v1_send_layout(resource, layouts[i].symbol);
+
+        /* Convert float array into wl_array */
+        serializecolor(&root, rootcolor);
+        serializecolor(&border, bordercolor);
+        serializecolor(&focus, focuscolor);
+        dscm_v1_send_colorscheme(resource, &root, &border, &focus);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -2868,194 +3060,4 @@ main(int argc, char *argv[])
 	return EXIT_SUCCESS;
 usage:
 	BARF("Usage: %s [-c path to config.scm] [-s startup command]", argv[0]);
-}
-
-void
-dwl_guile_monitor_handle_release(struct wl_client *client, struct wl_resource *resource)
-{
-	wl_resource_destroy(resource);
-}
-
-void
-dwl_guile_monitor_handle_destroy(struct wl_resource *resource) {
-	DwlGuileMonitor *mon = wl_resource_get_user_data(resource);
-	if (mon) {
-		wl_list_remove(&mon->link);
-		free(mon);
-	}
-}
-
-void
-dwl_guile_printstatus_to(Monitor *m, const DwlGuileMonitor *mon)
-{
-	Client *c, *focused;
-	int tagmask, state, numclients, focused_client;
-	focused = focustop(m);
-	dwl_guile_monitor_v1_send_selected(mon->resource, m == selmon);
-
-	for (int tag = 0; tag < numtags; tag++) {
-		numclients = state = 0;
-		focused_client = -1;
-		tagmask = 1 << tag;
-		if ((tagmask & m->tagset[m->seltags]) != 0)
-			state = state | DWL_GUILE_MONITOR_V1_TAG_STATE_ACTIVE;
-		wl_list_for_each(c, &clients, link) {
-			if (c->mon != m)
-				continue;
-			if (!(c->tags & tagmask))
-				continue;
-			if (c == focused)
-				focused_client = numclients;
-			numclients++;
-			if (c->isurgent)
-				state = state | DWL_GUILE_MONITOR_V1_TAG_STATE_URGENT;
-		}
-		dwl_guile_monitor_v1_send_tag(mon->resource, tag, state, numclients, focused_client);
-	}
-	dwl_guile_monitor_v1_send_layout(mon->resource, m->lt[m->sellt] - layouts);
-	dwl_guile_monitor_v1_send_title(mon->resource, focused ? client_get_title(focused) : "");
-	dwl_guile_monitor_v1_send_frame(mon->resource);
-}
-
-void
-dwl_guile_printstatus(Monitor *m)
-{
-	DwlGuileMonitor *mon;
-	wl_list_for_each(mon, &m->dwl_guile_monitor_link, link)
-		dwl_guile_printstatus_to(m, mon);
-}
-
-void
-dwl_guile_monitor_handle_set_tags(struct wl_client *client, struct wl_resource *resource,
-	uint32_t t, uint32_t toggle_tagset)
-{
-	DwlGuileMonitor *mon;
-	Monitor *m;
-	mon = wl_resource_get_user_data(resource);
-	if (!mon)
-		return;
-	m = mon->monitor;
-	if ((t & TAGMASK) == m->tagset[m->seltags])
-		return;
-	if (toggle_tagset)
-		m->seltags ^= 1;
-	if (t & TAGMASK)
-		m->tagset[m->seltags] = t & TAGMASK;
-
-	focusclient(focustop(m), 1);
-	arrange(m);
-	printstatus();
-}
-
-void
-dwl_guile_monitor_handle_set_layout(struct wl_client *client, struct wl_resource *resource,
-	uint32_t layout)
-{
-	DwlGuileMonitor *mon;
-	Monitor *m;
-	mon = wl_resource_get_user_data(resource);
-	if (!mon)
-		return;
-	m = mon->monitor;
-	if (layout >= numlayouts)
-		return;
-	if (layout != m->lt[m->sellt] - layouts)
-		m->sellt ^= 1;
-
-	m->lt[m->sellt] = &layouts[layout];
-	arrange(m);
-	printstatus();
-}
-
-void
-dwl_guile_monitor_handle_set_client_tags(struct wl_client *client, struct wl_resource *resource,
-	uint32_t and, uint32_t xor)
-{
-	DwlGuileMonitor *mon;
-	Client *sel;
-	unsigned int newtags;
-	mon = wl_resource_get_user_data(resource);
-	if (!mon)
-		return;
-	sel = focustop(mon->monitor);
-	if (!sel)
-		return;
-	newtags = (sel->tags & and) ^ xor;
-	if (newtags) {
-		sel->tags = newtags;
-		focusclient(focustop(selmon), 1);
-		arrange(selmon);
-		printstatus();
-	}
-}
-
-/* dwl_wm_v1 */
-void
-dwl_guile_handle_release(struct wl_client *client, struct wl_resource *resource)
-{
-	wl_resource_destroy(resource);
-}
-
-void
-dwl_guile_handle_get_monitor(struct wl_client *client, struct wl_resource *resource,
-	uint32_t id, struct wl_resource *output)
-{
-	DwlGuileMonitor *mon;
-	struct wlr_output *wlr_output = wlr_output_from_resource(output);
-	struct Monitor *m = wlr_output->data;
-	struct wl_resource *dwl_guile_resource = wl_resource_create(client,
-		&dwl_guile_monitor_v1_interface, wl_resource_get_version(resource), id);
-	if (!resource) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	mon = calloc(1, sizeof(DwlGuileMonitor));
-	mon->resource = dwl_guile_resource;
-	mon->monitor = m;
-	wl_resource_set_implementation(dwl_guile_resource, &dwl_guile_monitor_implementation,
-                mon, dwl_guile_monitor_handle_destroy);
-	wl_list_insert(&m->dwl_guile_monitor_link, &mon->link);
-	dwl_guile_printstatus_to(m, mon);
-}
-
-void
-dwl_guile_handle_destroy(struct wl_resource *resource)
-{
-	/* no state to destroy */
-}
-
-static void
-serializecolor(struct wl_array *array, float* color)
-{
-        float *data;
-        size_t size = 4 * sizeof(float);
-        wl_array_init(array);
-        data = (float*)wl_array_add(array, size);
-        memcpy(data, color, size);
-}
-
-
-void
-dwl_guile_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
-{
-        struct wl_array root, border, focus;
-	struct wl_resource *resource = wl_resource_create(client,
-		&dwl_guile_v1_interface, version, id);
-	if (!resource) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-
-	wl_resource_set_implementation(resource, &dwl_guile_implementation, NULL, dwl_guile_handle_destroy);
-
-	for (int i = 0; i < LENGTH(tags); i++)
-		dwl_guile_v1_send_tag(resource, tags[i]);
-	for (int i = 0; i < LENGTH(layouts); i++)
-		dwl_guile_v1_send_layout(resource, layouts[i].symbol);
-
-        /* Convert float array into wl_array */
-        serializecolor(&root, rootcolor);
-        serializecolor(&border, bordercolor);
-        serializecolor(&focus, focuscolor);
-        dwl_guile_v1_send_colorscheme(resource, &root, &border, &focus);
 }

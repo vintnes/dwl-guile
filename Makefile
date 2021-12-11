@@ -55,16 +55,16 @@ idle-protocol.c:
 
 idle-protocol.o: idle-protocol.h
 
-dwl-guile-unstable-v1-protocol.h:
+dscm-unstable-v1-protocol.h:
 	$(WAYLAND_SCANNER) server-header \
-		protocols/dwl-guile-unstable-v1.xml $@
+		protocols/dscm-unstable-v1.xml $@
 
-dwl-guile-unstable-v1-protocol.c:
+dscm-unstable-v1-protocol.c:
 	$(WAYLAND_SCANNER) private-code \
-		protocols/dwl-guile-unstable-v1.xml $@
+		protocols/dscm-unstable-v1.xml $@
 
-dwl-guile-unstable-v1-protocol.o: dwl-guile-unstable-v1-protocol.h
+dscm-unstable-v1-protocol.o: dscm-unstable-v1-protocol.h
 
-dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h idle-protocol.h dwl-guile-unstable-v1-protocol.h
+dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h idle-protocol.h dscm-unstable-v1-protocol.h
 
-dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o idle-protocol.o dwl-guile-unstable-v1-protocol.o
+dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o idle-protocol.o dscm-unstable-v1-protocol.o
