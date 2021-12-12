@@ -190,6 +190,7 @@ dscm_config_cleanup()
         free(rootcolor);
         free(bordercolor);
         free(focuscolor);
+        free(textcolor);
         free((char*)xkb_rules->rules);
         free((char*)xkb_rules->model);
         free((char*)xkb_rules->layout);
