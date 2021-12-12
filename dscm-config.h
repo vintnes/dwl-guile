@@ -13,6 +13,7 @@ static unsigned int borderpx    = 1;
 static float *rootcolor         = NULL;
 static float *bordercolor       = NULL;
 static float *focuscolor        = NULL;
+static float *textcolor         = NULL;
 static char **tags              = NULL;
 static char **termcmd           = NULL;
 static char **menucmd           = NULL;
@@ -143,6 +144,8 @@ dscm_config_parse(char *config_file)
         bordercolor = dscm_iterate_list(dscm_alist_get(colors, "border"),
                 sizeof(float), 0, &dscm_parse_color, NULL);
         focuscolor = dscm_iterate_list(dscm_alist_get(colors, "focus"),
+                sizeof(float), 0, &dscm_parse_color, NULL);
+        textcolor = dscm_iterate_list(dscm_alist_get(colors, "text"),
                 sizeof(float), 0, &dscm_parse_color, NULL);
         tags = dscm_iterate_list(dscm_alist_get(config, "tags"),
                 sizeof(char*), 0, &dscm_parse_string, &numtags);

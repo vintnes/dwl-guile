@@ -2850,7 +2850,8 @@ xytoindependent(double x, double y)
 void
 dscm_sendevents(void)
 {
-        char root[HEXLENGTH], border[HEXLENGTH], focus[HEXLENGTH];
+        char root[HEXLENGTH], border[HEXLENGTH],
+             focus[HEXLENGTH], text[HEXLENGTH];
 
 	for (int i = 0; i < numtags; i++)
 		dscm_v1_send_tag(dscm_resource, tags[i]);
@@ -2860,12 +2861,16 @@ dscm_sendevents(void)
         dscm_rgbatostr(root, rootcolor);
         dscm_rgbatostr(border, bordercolor);
         dscm_rgbatostr(focus, focuscolor);
-        dscm_v1_send_colorscheme(dscm_resource, root, border, focus);
+        dscm_rgbatostr(text, textcolor);
+        dscm_v1_send_colorscheme(dscm_resource, root, border, focus, text);
 }
 
 void
 dscm_rgbatostr(char *buf, float *color)
 {
+        if (!color)
+                return;
+
         unsigned int r, g, b, a;
         r = MAX(0, MIN(255, (int)ROUND(color[0] * 256.0)));
         g = MAX(0, MIN(255, (int)ROUND(color[1] * 256.0)));
