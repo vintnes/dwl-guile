@@ -228,7 +228,9 @@ struct render_data {
 	int x, y; /* layout-relative */
 };
 
-/* dscm protocol handlers */
+/* dscm protocol */
+static void dscm_sendevents(void);
+static void dscm_serializecolor(struct wl_array *array, float* color);
 static void dscm_closemon(struct wl_client *client, struct wl_resource *resource);
 static void dscm_destroymon(struct wl_resource *resource);
 static void dscm_printstatusmon(Monitor *m, const DscmMonitor *mon);
@@ -242,7 +244,6 @@ static void dscm_destroy(struct wl_resource *resource);
 static void dscm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id);
 
 /* function declarations */
-static void serializecolor(struct wl_array *array, float* color);
 static void applybounds(Client *c, struct wlr_box *bbox);
 static void applyexclusive(struct wlr_box *usable_area, uint32_t anchor,
 		int32_t exclusive, int32_t margin_top, int32_t margin_right,
@@ -363,6 +364,7 @@ static struct wlr_layer_shell_v1 *layer_shell;
 static struct wlr_output_manager_v1 *output_mgr;
 static struct wlr_presentation *presentation;
 static struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard_mgr;
+static struct wl_resource *dscm_resource;
 
 static struct wlr_cursor *cursor;
 static struct wlr_xcursor_manager *cursor_mgr;
@@ -2178,6 +2180,9 @@ reloadconfig(int signal, void *data) {
         wl_list_for_each(m, &mons, link)
                 arrange(m);
 
+        /* Send events to observing clients, notifying of possible changes */
+        dscm_sendevents();
+
         return 0;
 }
 
@@ -2839,7 +2844,24 @@ xytoindependent(double x, double y)
 #endif
 
 void
-serializecolor(struct wl_array *array, float* color)
+dscm_sendevents(void)
+{
+        struct wl_array root, border, focus;
+
+	for (int i = 0; i < numtags; i++)
+		dscm_v1_send_tag(dscm_resource, tags[i]);
+	for (int i = 0; i < numlayouts; i++)
+		dscm_v1_send_layout(dscm_resource, layouts[i].symbol);
+
+        /* Convert float array into wl_array */
+        dscm_serializecolor(&root, rootcolor);
+        dscm_serializecolor(&border, bordercolor);
+        dscm_serializecolor(&focus, focuscolor);
+        dscm_v1_send_colorscheme(dscm_resource, &root, &border, &focus);
+}
+
+void
+dscm_serializecolor(struct wl_array *array, float* color)
 {
         float *data;
         size_t size = 4 * sizeof(float);
@@ -2980,16 +3002,16 @@ dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 	DscmMonitor *mon;
 	struct wlr_output *wlr_output = wlr_output_from_resource(output);
 	struct Monitor *m = wlr_output->data;
-	struct wl_resource *dscm_resource = wl_resource_create(client,
+	struct wl_resource *dscm_monitor_resource = wl_resource_create(client,
 		&dscm_monitor_v1_interface, wl_resource_get_version(resource), id);
 	if (!resource) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 	mon = calloc(1, sizeof(DscmMonitor));
-	mon->resource = dscm_resource;
+	mon->resource = dscm_monitor_resource;
 	mon->monitor = m;
-	wl_resource_set_implementation(dscm_resource, &dscm_monitor_implementation,
+	wl_resource_set_implementation(dscm_monitor_resource, &dscm_monitor_implementation,
                 mon, dscm_destroymon);
 	wl_list_insert(&m->dscm, &mon->link);
 	dscm_printstatusmon(m, mon);
@@ -3004,26 +3026,15 @@ dscm_destroy(struct wl_resource *resource)
 void
 dscm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-        struct wl_array root, border, focus;
-	struct wl_resource *resource = wl_resource_create(client,
+	dscm_resource = wl_resource_create(client,
 		&dscm_v1_interface, version, id);
-	if (!resource) {
+	if (!dscm_resource) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 
-	wl_resource_set_implementation(resource, &dscm_implementation, NULL, dscm_destroy);
-
-	for (int i = 0; i < numtags; i++)
-		dscm_v1_send_tag(resource, tags[i]);
-	for (int i = 0; i < numlayouts; i++)
-		dscm_v1_send_layout(resource, layouts[i].symbol);
-
-        /* Convert float array into wl_array */
-        serializecolor(&root, rootcolor);
-        serializecolor(&border, bordercolor);
-        serializecolor(&focus, focuscolor);
-        dscm_v1_send_colorscheme(resource, &root, &border, &focus);
+	wl_resource_set_implementation(dscm_resource, &dscm_implementation, NULL, dscm_destroy);
+        dscm_sendevents();
 }
 
 int
