@@ -53,6 +53,7 @@
 #include <wlr/xwayland.h>
 #endif
 
+
 /* macros */
 #define BARF(fmt, ...)		do { fprintf(stderr, fmt "\n", ##__VA_ARGS__); exit(EXIT_FAILURE); } while (0)
 #define EBARF(fmt, ...)		BARF(fmt ": %s", ##__VA_ARGS__, strerror(errno))
@@ -63,6 +64,9 @@
 #define LENGTH(X)               (sizeof X / sizeof X[0])
 #define ROUND(X)                ((int)((X)+0.5))
 #define LISTEN(E, L, H)         wl_signal_add((E), ((L)->notify = (H), (L)))
+
+/* constants */
+#define HEXLENGTH                9
 
 /* enums */
 enum { CurNormal, CurMove, CurResize }; /* cursor */
@@ -230,7 +234,7 @@ struct render_data {
 
 /* dscm protocol */
 static void dscm_sendevents(void);
-static void dscm_serializecolor(struct wl_array *array, float* color);
+static void dscm_rgbatostr(char *buf, float *color);
 static void dscm_closemon(struct wl_client *client, struct wl_resource *resource);
 static void dscm_destroymon(struct wl_resource *resource);
 static void dscm_printstatusmon(Monitor *m, const DscmMonitor *mon);
@@ -2846,28 +2850,28 @@ xytoindependent(double x, double y)
 void
 dscm_sendevents(void)
 {
-        struct wl_array root, border, focus;
+        char root[HEXLENGTH], border[HEXLENGTH], focus[HEXLENGTH];
 
 	for (int i = 0; i < numtags; i++)
 		dscm_v1_send_tag(dscm_resource, tags[i]);
 	for (int i = 0; i < numlayouts; i++)
 		dscm_v1_send_layout(dscm_resource, layouts[i].symbol);
 
-        /* Convert float array into wl_array */
-        dscm_serializecolor(&root, rootcolor);
-        dscm_serializecolor(&border, bordercolor);
-        dscm_serializecolor(&focus, focuscolor);
-        dscm_v1_send_colorscheme(dscm_resource, &root, &border, &focus);
+        dscm_rgbatostr(root, rootcolor);
+        dscm_rgbatostr(border, bordercolor);
+        dscm_rgbatostr(focus, focuscolor);
+        dscm_v1_send_colorscheme(dscm_resource, root, border, focus);
 }
 
 void
-dscm_serializecolor(struct wl_array *array, float* color)
+dscm_rgbatostr(char *buf, float *color)
 {
-        float *data;
-        size_t size = 4 * sizeof(float);
-        wl_array_init(array);
-        data = (float*)wl_array_add(array, size);
-        memcpy(data, color, size);
+        unsigned int r, g, b, a;
+        r = MAX(0, MIN(255, (int)ROUND(color[0] * 256.0)));
+        g = MAX(0, MIN(255, (int)ROUND(color[1] * 256.0)));
+        b = MAX(0, MIN(255, (int)ROUND(color[2] * 256.0)));
+        a = MAX(0, MIN(255, (int)ROUND(color[3] * 256.0)));
+        snprintf(buf, HEXLENGTH, "%02X%02X%02X%02X", r, g, b, a);
 }
 
 void
