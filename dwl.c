@@ -439,9 +439,6 @@ static Atom netatom[NetLast];
 #include "dscm-config.h"
 #include "dscm-bindings.h"
 
-/* compile-time check if all tags fit into an unsigned int bit array. */
-struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
-
 /* function implementations */
 void
 applybounds(Client *c, struct wlr_box *bbox)
