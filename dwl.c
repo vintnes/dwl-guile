@@ -1904,6 +1904,16 @@ rendermon(struct wl_listener *listener, void *data)
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
+	/* If there is any XDG client which is awaiting resize, request a new
+	 * frame from that client, and do not render anything new until there
+	 * are no pending resizes remaining. */
+	wl_list_for_each(c, &stack, slink) {
+		if (c->resize) {
+			wlr_surface_send_frame_done(client_surface(c), &now);
+			return;
+		}
+	}
+
 	/* Do not render if no new frame is needed */
 	pixman_region32_init(&damage);
 	render = wlr_output_damage_attach_render(m->damage, &needs_frame, &damage);
