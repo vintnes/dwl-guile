@@ -6,7 +6,7 @@ WAYLAND_PROTOCOLS=$(shell pkg-config --variable=pkgdatadir wayland-protocols)
 WAYLAND_SCANNER=$(shell pkg-config --variable=wayland_scanner wayland-scanner)
 
 PKGS = wlroots wayland-server xcb xkbcommon libinput guile-3.0 pixman-1
-CFLAGS += $(foreach p,$(PKGS),$(shell pkg-config --cflags $(p))) -DWLR_USE_UNSTABLE
+CFLAGS += $(foreach p,$(PKGS),$(shell pkg-config --cflags $(p))) -DWLR_USE_UNSTABLE -Wno-error=implicit-function-declaration
 LDLIBS += $(foreach p,$(PKGS),$(shell pkg-config --libs $(p)))
 
 all: dwl
