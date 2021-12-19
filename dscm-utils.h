@@ -112,11 +112,12 @@ static inline void *
 dscm_iterate_list(SCM list, size_t elem_size, int append_null,
         void (*iterator)(unsigned int, SCM, void*), unsigned int *length_var)
 {
+        SCM item;
         unsigned int i = 0, length = 0;
         length = dscm_get_list_length(list);
         void *allocated = calloc(append_null ? length + 1 : length, elem_size);
         for (; i < length; i++) {
-                SCM item = dscm_get_list_item(list, i);
+                item = dscm_get_list_item(list, i);
                 (*iterator)(i, item, allocated);
         }
         if (append_null)
@@ -124,6 +125,17 @@ dscm_iterate_list(SCM list, size_t elem_size, int append_null,
         if (length_var)
                 *length_var = length;
         return allocated;
+}
+
+static inline void
+dscm_modify_list(SCM list, void *target, void (*iterator)(unsigned int, SCM, void*))
+{
+        SCM item;
+        unsigned int length = dscm_get_list_length(list);
+        for (unsigned int i = 0; i < length; i++) {
+                item = dscm_get_list_item(list, i);
+                (*iterator)(i, item, target);
+        }
 }
 
 static inline void*
