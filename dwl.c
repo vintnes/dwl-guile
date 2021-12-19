@@ -184,6 +184,11 @@ typedef struct {
 typedef struct {
 	struct wl_list link;
 	struct wl_resource *resource;
+} DscmClient;
+
+typedef struct {
+	struct wl_list link;
+	struct wl_resource *resource;
 	struct Monitor *monitor;
 } DscmMonitor;
 
@@ -235,6 +240,7 @@ struct render_data {
 
 /* dscm protocol */
 static void dscm_sendevents(void);
+static void dscm_sendeventsclient(DscmClient *c);
 static void dscm_rgbatostr(char *buf, float *color);
 static void dscm_closemon(struct wl_client *client, struct wl_resource *resource);
 static void dscm_destroymon(struct wl_resource *resource);
@@ -365,12 +371,12 @@ static struct wl_list fstack;  /* focus order */
 static struct wl_list stack;   /* stacking z-order */
 static struct wl_list independents;
 static struct wl_list subsurfaces;
+static struct wl_list dscm_clients;
 static struct wlr_idle *idle;
 static struct wlr_layer_shell_v1 *layer_shell;
 static struct wlr_output_manager_v1 *output_mgr;
 static struct wlr_presentation *presentation;
 static struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard_mgr;
-static struct wl_resource *dscm_resource;
 
 static struct wlr_cursor *cursor;
 static struct wlr_xcursor_manager *cursor_mgr;
@@ -2262,6 +2268,7 @@ setup(char *config_file)
 	wl_list_init(&stack);
 	wl_list_init(&independents);
 	wl_list_init(&subsurfaces);
+        wl_list_init(&dscm_clients);
 
 	idle = wlr_idle_create(dpy);
 
@@ -2861,21 +2868,29 @@ xytoindependent(double x, double y)
 #endif
 
 void
-dscm_sendevents(void)
+dscm_sendeventsclient(DscmClient *c)
 {
         char root[HEXLENGTH], border[HEXLENGTH],
              focus[HEXLENGTH], text[HEXLENGTH];
 
-	for (int i = 0; i < numtags; i++)
-		dscm_v1_send_tag(dscm_resource, tags[i]);
-	for (int i = 0; i < numlayouts; i++)
-		dscm_v1_send_layout(dscm_resource, layouts[i].symbol);
+        for (int i = 0; i < numtags; i++)
+                dscm_v1_send_tag(c->resource, tags[i]);
+        for (int i = 0; i < numlayouts; i++)
+                dscm_v1_send_layout(c->resource, layouts[i].symbol);
 
         dscm_rgbatostr(root, rootcolor);
         dscm_rgbatostr(border, bordercolor);
         dscm_rgbatostr(focus, focuscolor);
         dscm_rgbatostr(text, textcolor);
-        dscm_v1_send_colorscheme(dscm_resource, root, border, focus, text);
+        dscm_v1_send_colorscheme(c->resource, root, border, focus, text);
+}
+
+void
+dscm_sendevents(void)
+{
+	DscmClient *c;
+	wl_list_for_each(c, &dscm_clients, link)
+                dscm_sendeventsclient(c);
 }
 
 void
@@ -3042,20 +3057,28 @@ dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 void
 dscm_destroy(struct wl_resource *resource)
 {
-	/* no state to destroy */
+	DscmClient *c = wl_resource_get_user_data(resource);
+	if (c) {
+		wl_list_remove(&c->link);
+		free(c);
+	}
 }
 
 void
 dscm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-	dscm_resource = wl_resource_create(client,
-		&dscm_v1_interface, version, id);
-	if (!dscm_resource) {
+        DscmClient *c;
+        struct wl_resource *resource = wl_resource_create(client,
+                &dscm_v1_interface, version, id);
+	if (!resource) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 
-	wl_resource_set_implementation(dscm_resource, &dscm_implementation, NULL, dscm_destroy);
+        c = calloc(1, sizeof(DscmClient));
+        c->resource = resource;
+	wl_resource_set_implementation(resource, &dscm_implementation, c, dscm_destroy);
+        wl_list_insert(&dscm_clients, &c->link);
         dscm_sendevents();
 }
 
