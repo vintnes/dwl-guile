@@ -200,6 +200,7 @@ struct Monitor {
 	unsigned int seltags;
 	unsigned int sellt;
 	unsigned int tagset[2];
+        unsigned int prevtagset;
 	double mfact;
 	int nmaster;
 	struct wlr_output_damage *damage;
@@ -339,6 +340,7 @@ static void updatemons(struct wl_listener *listener, void *data);
 static void updatetitle(struct wl_listener *listener, void *data);
 static void urgent(struct wl_listener *listener, void *data);
 static void view(const Arg *arg);
+static void viewprev(const Arg *arg);
 static void virtualkeyboard(struct wl_listener *listener, void *data);
 static Client *xytoclient(double x, double y);
 static struct wlr_surface *xytolayersurface(struct wl_list *layer_surfaces,
@@ -2576,17 +2578,31 @@ urgent(struct wl_listener *listener, void *data)
 	}
 }
 
+
 void
 view(const Arg *arg)
 {
-	if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
+        unsigned int currtagset = selmon->tagset[selmon->seltags];
+	if ((arg->ui & TAGMASK) == currtagset)
 		return;
+        selmon->prevtagset = currtagset;
 	selmon->seltags ^= 1; /* toggle sel tagset */
 	if (arg->ui & TAGMASK)
 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
 	focusclient(focustop(selmon), 1);
 	arrange(selmon);
 	printstatus();
+}
+
+void
+viewprev(const Arg *arg)
+{
+        unsigned int tagset = selmon->tagset[selmon->seltags];
+        selmon->tagset[selmon->seltags] = selmon->prevtagset;
+        selmon->prevtagset = tagset;
+        focusclient(focustop(selmon), 1);
+        arrange(selmon);
+        printstatus();
 }
 
 void

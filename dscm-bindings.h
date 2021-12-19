@@ -152,6 +152,13 @@ dscm_binding_view(SCM value)
 }
 
 static inline SCM
+dscm_binding_viewprev(SCM value)
+{
+        viewprev(NULL);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
 dscm_binding_toggleview(SCM value)
 {
         Arg a = {.ui = dscm_get_tag(value, numtags)};
@@ -249,6 +256,7 @@ dscm_register()
         scm_c_define_gsubr("dwl:monocle", 1, 0, 0, &dscm_binding_monocle);
         scm_c_define_gsubr("dwl:spawn", 0, 0, 1, &dscm_binding_spawn);
         scm_c_define_gsubr("dwl:view", 1, 0, 0, &dscm_binding_view);
+        scm_c_define_gsubr("dwl:view-previous", 0, 0, 0, &dscm_binding_viewprev);
         scm_c_define_gsubr("dwl:toggle-view", 1, 0, 0, &dscm_binding_toggleview);
         scm_c_define_gsubr("dwl:tag", 1, 0, 0, &dscm_binding_tag);
         scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &dscm_binding_toggletag);
