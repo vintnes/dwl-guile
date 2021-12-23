@@ -220,6 +220,75 @@ dscm_binding_quit()
         return SCM_BOOL_T;
 }
 
+static inline SCM
+dscm_binding_incrgaps(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incrgaps(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_incrigaps(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incrigaps(&a);
+        return SCM_BOOL_T;
+}
+static inline SCM
+dscm_binding_incrogaps(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incrogaps(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_incrohgaps(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incrohgaps(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_incrovgaps(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incrovgaps(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_incrihgaps(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incrihgaps(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_incrivgaps(SCM value)
+{
+        Arg a = {.i = scm_to_int(value)};
+        incrivgaps(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_togglegaps()
+{
+        togglegaps(NULL);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_defaultgaps()
+{
+        defaultgaps(NULL);
+        return SCM_BOOL_T;
+}
+
 static inline void
 dscm_register()
 {
@@ -282,4 +351,13 @@ dscm_register()
         scm_c_define_gsubr("dwl:change-alpha", 1, 0, 0, &dscm_binding_changealpha);
         scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &dscm_binding_spawn_menu);
         scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &dscm_binding_spawn_terminal);
+        scm_c_define_gsubr("dwl:toggle-gaps", 0, 0, 0, &dscm_binding_togglegaps);
+        scm_c_define_gsubr("dwl:default-gaps", 0, 0, 0, &dscm_binding_defaultgaps);
+        scm_c_define_gsubr("dwl:gaps", 1, 0, 0, &dscm_binding_incrgaps);
+        scm_c_define_gsubr("dwl:gaps-inner", 1, 0, 0, &dscm_binding_incrigaps);
+        scm_c_define_gsubr("dwl:gaps-outer", 1, 0, 0, &dscm_binding_incrogaps);
+        scm_c_define_gsubr("dwl:gaps-inner-horizontal", 1, 0, 0, &dscm_binding_incrihgaps);
+        scm_c_define_gsubr("dwl:gaps-inner-vertical", 1, 0, 0, &dscm_binding_incrivgaps);
+        scm_c_define_gsubr("dwl:gaps-outer-horizontal", 1, 0, 0, &dscm_binding_incrohgaps);
+        scm_c_define_gsubr("dwl:gaps-outer-vertical", 1, 0, 0, &dscm_binding_incrovgaps);
 }

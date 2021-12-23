@@ -11,6 +11,11 @@ static int tap_to_click         = 1;
 static int natural_scrolling    = 1;
 static unsigned int borderpx    = 1;
 static double default_alpha     = 1.0;
+static unsigned int gappih      = 0;
+static unsigned int gappiv      = 0;
+static unsigned int gappoh      = 0;
+static unsigned int gappov      = 0;
+static int smartgaps            = 0;
 static float *rootcolor         = NULL;
 static float *bordercolor       = NULL;
 static float *focuscolor        = NULL;
@@ -140,6 +145,11 @@ dscm_config_parse(char *config_file)
         repeat_rate = dscm_alist_get_unsigned_int(config, "repeat-rate", 5000);
         repeat_delay = dscm_alist_get_unsigned_int(config, "repeat-delay", 5000);
         default_alpha = dscm_alist_get_double(config, "default-alpha");
+        gappih = dscm_alist_get_unsigned_int(config, "gaps-horizontal-inner", -1);
+        gappiv = dscm_alist_get_unsigned_int(config, "gaps-vertical-inner", -1);
+        gappoh = dscm_alist_get_unsigned_int(config, "gaps-horizontal-outer", -1);
+        gappov = dscm_alist_get_unsigned_int(config, "gaps-vertical-outer", -1);
+        smartgaps = dscm_alist_get_int(config, "smart-gaps");
 
         SCM colors = dscm_alist_get(config, "colors");
         rootcolor = dscm_iterate_list(dscm_alist_get(colors, "root"),
