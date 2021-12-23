@@ -115,6 +115,8 @@ typedef struct {
 	int bw;
 	unsigned int tags;
 	int isfloating, isurgent;
+	double alpha;
+	double prevalpha;
 	uint32_t resize; /* configure serial of a pending resize */
 	int prevx;
 	int prevy;
@@ -227,6 +229,7 @@ typedef struct {
 	char *title;
 	unsigned int tags;
 	int isfloating;
+	double alpha;
 	int monitor;
 } Rule;
 
@@ -236,6 +239,7 @@ struct render_data {
 	struct wlr_output *output;
 	struct timespec *when;
 	int x, y; /* layout-relative */
+	double alpha;
 };
 
 /* dscm protocol */
@@ -266,6 +270,7 @@ static void arrangelayer(Monitor *m, struct wl_list *list,
 static void arrangelayers(Monitor *m);
 static void axisnotify(struct wl_listener *listener, void *data);
 static void buttonpress(struct wl_listener *listener, void *data);
+static void changealpha(const Arg *arg);
 static void chvt(const Arg *arg);
 static void cleanup(void);
 static void cleanupkeyboard(struct wl_listener *listener, void *data);
@@ -541,6 +546,7 @@ applyrules(Client *c)
 		if ((!r.title || strstr(title, r.title))
 				&& (!r.id || strstr(appid, r.id))) {
 			c->isfloating = r.isfloating;
+                        c->alpha = r.alpha;
 			newtags |= r.tags;
 			j = 0;
 			wl_list_for_each(m, &mons, link)
@@ -749,6 +755,21 @@ buttonpress(struct wl_listener *listener, void *data)
 	 * pointer focus that a button press has occurred */
 	wlr_seat_pointer_notify_button(seat,
 			event->time_msec, event->button, event->state);
+}
+
+void
+changealpha(const Arg *arg)
+{
+	Client *sel = selclient();
+
+	if (sel) {
+		sel->alpha += arg->f;
+		if (sel->alpha > 1.0)
+			sel->alpha = 1.0;
+
+		if (sel->alpha < 0.1)
+			sel->alpha = 0.1;
+	}
 }
 
 void
@@ -1001,6 +1022,7 @@ createnotify(struct wl_listener *listener, void *data)
 	c = xdg_surface->data = calloc(1, sizeof(*c));
 	c->surface.xdg = xdg_surface;
 	c->bw = borderpx;
+	c->alpha = default_alpha;
 
 	/* LISTEN(&xdg_surface->surface->events.commit, &c->commit, commitnotify); */
 	LISTEN(&xdg_surface->surface->events.new_subsurface, &c->new_sub, new_subnotify);
@@ -1166,6 +1188,8 @@ setfullscreen(Client *c, int fullscreen)
 		c->prevy = c->geom.y;
 		c->prevheight = c->geom.height;
 		c->prevwidth = c->geom.width;
+                c->prevalpha = c->alpha;
+                c->alpha = 1;
 		resize(c, c->mon->m.x, c->mon->m.y, c->mon->m.width, c->mon->m.height, 0);
 		wl_list_remove(&c->slink);
 		wl_list_insert(&stack, &c->slink);
@@ -1173,6 +1197,7 @@ setfullscreen(Client *c, int fullscreen)
 	} else {
 		/* restore previous size instead of arrange for floating windows since
 		 * client positions are set by the user and cannot be recalculated */
+                c->alpha = c->prevalpha;
 		resize(c, c->prevx, c->prevy, c->prevwidth, c->prevheight, 0);
 		if (!c->isfloating) {
 			wl_list_remove(&c->slink);
@@ -1819,7 +1844,7 @@ render(struct wlr_surface *surface, int sx, int sy, void *data)
 
 	/* This takes our matrix, the texture, and an alpha, and performs the actual
 	 * rendering on the GPU. */
-	wlr_render_texture_with_matrix(drw, texture, matrix, 1);
+	wlr_render_texture_with_matrix(drw, texture, matrix, rdata->alpha);
 
 	/* This lets the client know that we've displayed that frame and it can
 	 * prepare another one now if it likes. */
@@ -1876,6 +1901,7 @@ renderclients(Monitor *m, struct timespec *now)
 		rdata.when = now;
 		rdata.x = c->geom.x + c->bw;
 		rdata.y = c->geom.y + c->bw;
+		rdata.alpha = c->alpha;
 		client_for_each_surface(c, render, &rdata);
 	}
 }
@@ -1890,6 +1916,7 @@ renderlayer(struct wl_list *layer_surfaces, struct timespec *now)
 			.when = now,
 			.x = layersurface->geo.x,
 			.y = layersurface->geo.y,
+			.alpha = 1,
 		};
 
 		wlr_surface_for_each_surface(layersurface->layer_surface->surface,
@@ -2734,6 +2761,7 @@ createnotifyx11(struct wl_listener *listener, void *data)
 	c->type = xwayland_surface->override_redirect ? X11Unmanaged : X11Managed;
 	c->bw = borderpx;
 	c->isfullscreen = 0;
+	c->alpha = default_alpha;
 
 	/* Listen to the various events it can emit */
 	if (c->type == X11Managed) {
@@ -2809,6 +2837,8 @@ renderindependents(struct wlr_output *output, struct timespec *now)
 		rdata.when = now;
 		rdata.x = c->surface.xwayland->x;
 		rdata.y = c->surface.xwayland->y;
+		rdata.alpha = c->alpha;
+
 		wlr_surface_for_each_surface(c->surface.xwayland->surface, render, &rdata);
 	}
 }

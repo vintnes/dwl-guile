@@ -10,6 +10,7 @@ static int sloppyfocus          = 1;
 static int tap_to_click         = 1;
 static int natural_scrolling    = 1;
 static unsigned int borderpx    = 1;
+static double default_alpha     = 1.0;
 static float *rootcolor         = NULL;
 static float *bordercolor       = NULL;
 static float *focuscolor        = NULL;
@@ -79,7 +80,8 @@ dscm_parse_rule(unsigned int index, SCM rule, void *data)
                 .title = dscm_alist_get_string(rule, "title"),
                 .tags = dscm_alist_get_unsigned_int(rule, "tag", -1),
                 .isfloating = dscm_alist_get_int(rule, "floating"),
-                .monitor = dscm_alist_get_int(rule, "monitor")
+                .monitor = dscm_alist_get_int(rule, "monitor"),
+                .alpha = dscm_alist_get_double(rule, "alpha")
          };
 }
 
@@ -137,6 +139,7 @@ dscm_config_parse(char *config_file)
         borderpx = dscm_alist_get_unsigned_int(config, "border-px", 25);
         repeat_rate = dscm_alist_get_unsigned_int(config, "repeat-rate", 5000);
         repeat_delay = dscm_alist_get_unsigned_int(config, "repeat-delay", 5000);
+        default_alpha = dscm_alist_get_double(config, "default-alpha");
 
         SCM colors = dscm_alist_get(config, "colors");
         rootcolor = dscm_iterate_list(dscm_alist_get(colors, "root"),

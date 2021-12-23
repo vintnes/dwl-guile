@@ -144,6 +144,14 @@ dscm_binding_chvt(SCM tty)
 }
 
 static inline SCM
+dscm_binding_changealpha(SCM value)
+{
+        Arg a = {.f = scm_to_double(value)};
+        changealpha(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
 dscm_binding_view(SCM value)
 {
         Arg a = {.ui = dscm_get_tag(value, numtags)};
@@ -271,6 +279,7 @@ dscm_register()
         scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &dscm_binding_moveresize);
         scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &dscm_binding_incnmaster);
         scm_c_define_gsubr("dwl:shcmd", 1, 0, 0, &dscm_binding_shcmd);
+        scm_c_define_gsubr("dwl:change-alpha", 1, 0, 0, &dscm_binding_changealpha);
         scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &dscm_binding_spawn_menu);
         scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &dscm_binding_spawn_terminal);
 }
