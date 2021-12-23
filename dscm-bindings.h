@@ -183,6 +183,16 @@ dscm_binding_tag(SCM value)
 }
 
 static inline SCM
+dscm_binding_cyclelayout(SCM direction)
+{
+        Arg a = {.i = 1};
+        if (scm_is_number(direction))
+                a.i = scm_to_int(direction);
+        cyclelayout(&a);
+        return SCM_BOOL_T;
+}
+
+static inline SCM
 dscm_binding_incnmaster(SCM value)
 {
         Arg a = {.i = scm_to_int(value)};
@@ -336,6 +346,7 @@ dscm_register()
         scm_c_define_gsubr("dwl:view-previous", 0, 0, 0, &dscm_binding_viewprev);
         scm_c_define_gsubr("dwl:toggle-view", 1, 0, 0, &dscm_binding_toggleview);
         scm_c_define_gsubr("dwl:tag", 1, 0, 0, &dscm_binding_tag);
+        scm_c_define_gsubr("dwl:cycle-layout", 0, 1, 0, &dscm_binding_cyclelayout);
         scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &dscm_binding_toggletag);
         scm_c_define_gsubr("dwl:focus-stack", 1, 0, 0, &dscm_binding_focusstack);
         scm_c_define_gsubr("dwl:set-master-factor", 1, 0, 0, &dscm_binding_setmfact);
