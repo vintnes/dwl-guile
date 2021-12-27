@@ -1349,7 +1349,7 @@ focusstack(const Arg *arg)
 {
 	/* Focus the next or previous client (in tiling order) on selmon */
 	Client *c, *sel = selclient();
-	if (!sel)
+	if (!sel || sel->isfullscreen)
 		return;
 	if (arg->i > 0) {
 		wl_list_for_each(c, &sel->link, link) {
@@ -1503,7 +1503,7 @@ void
 mapnotify(struct wl_listener *listener, void *data)
 {
 	/* Called when the surface is mapped, or ready to display on-screen. */
-	Client *c = wl_container_of(listener, c, map);
+	Client *c = wl_container_of(listener, c, map), *sel = selclient();
 
 	/* Insert this client into client lists. */
 	wl_list_insert(&clients, &c->link);
@@ -1521,6 +1521,10 @@ mapnotify(struct wl_listener *listener, void *data)
 
         if (c->isfullscreen)
                 setfullscreen(c, 1);
+        /* Prevent new clients from stealing focus from fullscreen client
+         * on same monitor. */
+        else if (sel && sel->isfullscreen && VISIBLEON(sel, c->mon))
+                focusclient(sel, 1);
 
 	// Damage the whole screen
 	wlr_output_damage_add_whole(c->mon->damage);
